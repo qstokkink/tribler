@@ -36,7 +36,7 @@ from Tribler.Main.vwxGUI.widgets import (SelectableListCtrl, TextCtrlAutoComplet
 from Tribler.Policies.credit_mining_util import string_to_source
 from Tribler.community.multichain.community import MultiChainCommunity
 from Tribler.community.tunnel.hidden_community import HiddenTunnelCommunity
-from Tribler.community.tunnel.routing import Hop
+from Tribler.community.tunnel.remotes.hop import Hop
 
 # width size of channel grid
 from Tribler.dispersy.taskmanager import TaskManager
