@@ -10,7 +10,7 @@ class SyncDict(dict):
     """A dictionary which syncs its items with other SyncDicts
     """
 
-    def __init__(self, cls, task_manager, callback=lambda x: None,
+    def __init__(self, cls, task_manager=None, callback=lambda x: None,
                  init_callback=None, sync_interval=5.0):
         """Create a new sync dict for a certain class type
 
@@ -32,10 +32,22 @@ class SyncDict(dict):
         self.callback = callback
         self.init_callback = init_callback
 
-        if sync_interval > 0:
+        if task_manager and sync_interval > 0:
+            self.register_task(task_manager)
+
+    def register_task(self, task_manager):
+        """Register a LoopingCall with a TaskManager
+
+        :param task_manager: the TaskManager to register with
+        :type task_manager: Tribler.dispersy.taskmanager.TaskManager
+        :returns: None
+        """
+        if self.sync_interval > 0:
             task_manager.register_task("syncdict_" + str(id(self)),
                                        LoopingCall(self.synchronize)
-                                       ).start(sync_interval, now=True)
+                                       ).start(self.sync_interval,
+                                               now=True)
+        
 
     def is_same_type(self, cls_name):
         """Check if a class name is equal to our stored class

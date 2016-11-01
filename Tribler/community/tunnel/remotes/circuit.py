@@ -163,5 +163,6 @@ class Circuit(RemoteObject):
         """
         self._broken = True
 
-        for hop_id in filter(set(self.hops).__contains__, self.proxy.hops.keys()):
-            self.proxy.hops.pop(hop_id)
+        if self.proxy:
+            for hop_id in filter(set(self.hops).__contains__, self.proxy.hops.keys()):
+                self.proxy.hops.pop(hop_id)

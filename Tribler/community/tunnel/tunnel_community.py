@@ -281,8 +281,8 @@ class TunnelCommunity(Community):
 
         self.data_prefix = "fffffffe".decode("HEX")
         self.process = None
-        self.circuits = SyncDict(Circuit, self, self.on_sync_data)
-        self.hops = SyncDict(Hop, self, self.on_sync_data)
+        self.circuits = SyncDict(Circuit, callback=self.on_sync_data)
+        self.hops = SyncDict(Hop, callback=self.on_sync_data)
         self.directions = {}
         self.relay_from_to = {}
         self.relay_session_keys = {}
@@ -307,6 +307,9 @@ class TunnelCommunity(Community):
         self.tunnel_logger.info("TunnelCommunity: setting become_exitnode = %s" % self.settings.become_exitnode)
 
         super(TunnelCommunity, self).initialize()
+
+        self.circuits.register_task(self)
+        self.hops.register_task(self)
 
         assert isinstance(self.settings.crypto, TunnelCrypto), self.settings.crypto
 
