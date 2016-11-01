@@ -1,6 +1,6 @@
 import logging
 
-from twisted.internet.task import LoopingCall 
+from twisted.internet.task import LoopingCall
 
 from Tribler.community.tunnel.remotes.remote_object import RemoteObject
 
@@ -24,6 +24,7 @@ class SyncDict(dict):
         :type sync_interval: float
         :returns: None
         """
+        super(SyncDict, self).__init__()
 
         assert issubclass(cls, RemoteObject)
 
@@ -45,9 +46,8 @@ class SyncDict(dict):
         if self.sync_interval > 0:
             task_manager.register_task("syncdict_" + str(id(self)),
                                        LoopingCall(self.synchronize)
-                                       ).start(self.sync_interval,
-                                               now=True)
-        
+                                      ).start(self.sync_interval,
+                                              now=True)
 
     def is_same_type(self, cls_name):
         """Check if a class name is equal to our stored class

@@ -147,7 +147,7 @@ class Circuit(RemoteObject):
         """
 
         self._logger.info("Tunnel data (len %d) to end for circuit %s with ultimate destination %s", len(payload),
-                           self.circuit_id, destination)
+                          self.circuit_id, destination)
 
         num_bytes = self.proxy.send_data([Candidate(tuple(self.first_hop), False)], self.circuit_id, destination, ('0.0.0.0', 0), payload)
         self.proxy.increase_bytes_sent(self, num_bytes)

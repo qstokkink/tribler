@@ -88,7 +88,8 @@ class RemoteObject(object):
                         out[f] = hexlify(value)
                     elif isinstance(value, (tuple, list)):
                         out[f] = map(lambda x: hexlify(x)
-                            if isinstance(x, basestring) else x, value)
+                                     if isinstance(x, basestring)
+                                     else x, value)
                     else:
                         out[f] = value
         if hasattr(instance, '_dirty_serializables'):

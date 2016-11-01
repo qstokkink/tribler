@@ -296,7 +296,8 @@ class TriblerLaunchMany(TaskManager):
                                     TestHiddenCommunity, dispersy_member, load=True, kargs=tunnel_kwargs)[0]
                             else:
                                 # Load the normal HiddenTunnelCommunityMultichain
-                                from Tribler.community.tunnel.hidden_community_multichain import HiddenTunnelCommunityMultichain
+                                from Tribler.community.tunnel.hidden_community_multichain \
+                                    import HiddenTunnelCommunityMultichain
                                 self.tunnel_community = self.dispersy.define_auto_load(
                                     HiddenTunnelCommunityMultichain, dispersy_member, load=True, kargs=tunnel_kwargs)[0]
                     else:

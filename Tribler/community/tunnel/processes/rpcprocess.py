@@ -113,7 +113,7 @@ class RPCProcess(IProcess):
                 logging.error("Malformed RPC argument for " +
                               name + ": '" + arg + "'")
                 return
-        if not name in self.rpc_map:
+        if name not in self.rpc_map:
             logging.error("Got illegal RPC: " +
                           name + ", source = " + s)
             return
@@ -122,8 +122,8 @@ class RPCProcess(IProcess):
             # This is a new rpc call
             # Share our response
             response = ((self.rpc_map[name](*arg)
-                        if self.auto_serialize[name]
-                        else self.rpc_map[name](arg)) if arg
+                         if self.auto_serialize[name]
+                         else self.rpc_map[name](arg)) if arg
                         else self.rpc_map[name]())
             self.write_ctrl(name + "," + msg_id + "," +
                             (json.dumps(response)

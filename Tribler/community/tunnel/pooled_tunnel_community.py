@@ -91,7 +91,7 @@ class PooledTunnelCommunity(Community):
         :returns: None
         """
         self.pool.set_worker_count(0)
-        super(PooledTunnelCommunity, self).unload_community() 
+        super(PooledTunnelCommunity, self).unload_community()
 
     @classmethod
     def get_master_members(cls, dispersy):
@@ -185,7 +185,7 @@ class PooledTunnelCommunity(Community):
                     success += 1
             if success < num_to_build:
                 self.tunnel_logger.info("circuit creation of %d circuits failed, no need to continue" %
-                                         num_to_build)
+                                        num_to_build)
 
     def data_circuits(self, hops=None):
         """Compatibility method, see TunnelCommunity
@@ -267,7 +267,7 @@ class PooledTunnelCommunity(Community):
         :return: the length of the data sent
         :rtype: int
         """
-        if not circuit_id in self.circuits.keys():
+        if circuit_id not in self.circuits.keys():
             self.tunnel_logger.error("Tried to send data over a removed circuit")
             if len(self.circuits.keys()) > 0:
                 self.pool.send_data(candidates, self.circuits.keys()[0], dest_address, source_address, data)
@@ -311,12 +311,15 @@ class PooledTunnelCommunity(Community):
         pass
 
 class TestHiddenCommunity(HiddenTunnelCommunity):
-    
+
     def __init__(self, *args, **kwargs):
         dispersy = args[0] if len(args) > 0 else kwargs.pop('dispersy')
         my_member = args[2] if len(args) > 2 else kwargs.pop('my_member')
         test_master = "3081a7301006072a8648ce3d020106052b810400270381920004073e6d578d7d9293bc45f00c07104f06b93b2223053e59aaaef1081f46e4b62f32812792bac56cff25edd7427d6e708dd1fe54aa4db767a1ed9bfac9d898ff574ffc7a629d7e811304d9f1bd4d8bb7a1a650a83c2e212ec3d85184f49b8b104ba2312450fcc74311e13285ed54e14a9ab4773c8a65b20e0eab1bc8732f8a3b07bd13659e78753aafd353aa38918817e3".decode("HEX")
-        super(TestHiddenCommunity, self).__init__(dispersy, dispersy.get_member(public_key=test_master), my_member, **kwargs)
+        super(TestHiddenCommunity, self).__init__(dispersy,
+                                                  dispersy.get_member(public_key=test_master),
+                                                  my_member,
+                                                  **kwargs)
 
     @classmethod
     def get_master_members(cls, dispersy):
@@ -330,7 +333,10 @@ class TestPooledTunnelCommunity(PooledTunnelCommunity):
         dispersy = args[0] if len(args) > 0 else kwargs.pop('dispersy')
         my_member = args[2] if len(args) > 2 else kwargs.pop('my_member')
         test_master = "3081a7301006072a8648ce3d020106052b810400270381920004073e6d578d7d9293bc45f00c07104f06b93b2223053e59aaaef1081f46e4b62f32812792bac56cff25edd7427d6e708dd1fe54aa4db767a1ed9bfac9d898ff574ffc7a629d7e811304d9f1bd4d8bb7a1a650a83c2e212ec3d85184f49b8b104ba2312450fcc74311e13285ed54e14a9ab4773c8a65b20e0eab1bc8732f8a3b07bd13659e78753aafd353aa38918817e3".decode("HEX")
-        super(TestPooledTunnelCommunity, self).__init__(dispersy, dispersy.get_member(public_key=test_master), my_member, **kwargs)
+        super(TestPooledTunnelCommunity, self).__init__(dispersy,
+                                                        dispersy.get_member(public_key=test_master),
+                                                        my_member,
+                                                        **kwargs)
 
     @classmethod
     def get_master_members(cls, dispersy):

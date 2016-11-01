@@ -953,7 +953,7 @@ class TunnelCommunity(Community):
                 unverified_hop.hop_id = str(circuit.circuit_id) + str(id(unverified_hop))
                 self.hops[unverified_hop.hop_id] = unverified_hop
                 circuit.unverified_hop = unverified_hop.hop_id
-                unverified_hop.dh_secret,unverified_hop.dh_first_part = \
+                unverified_hop.dh_secret, unverified_hop.dh_first_part = \
                     self.crypto.generate_diffie_secret()
 
                 self.tunnel_logger.info("extending circuit %d with %s", circuit.circuit_id,

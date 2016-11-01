@@ -8,7 +8,14 @@ from twisted.internet.defer import inlineCallbacks
 from twisted.internet.threads import blockingCallFromThread
 
 from Tribler.community.tunnel.processes.line_util import fix_split
-from Tribler.community.tunnel.processes.rpc_defs import *
+from Tribler.community.tunnel.processes.rpc_defs import (RPC_RESPONSE_OK,
+                                                         RPC_RESPONSE_ERR,
+                                                         RPC_CREATE,
+                                                         RPC_NOTIFY,
+                                                         RPC_SYNC,
+                                                         RPC_MONITOR,
+                                                         RPC_CIRCUIT,
+                                                         RPC_CIRDEAD)
 from Tribler.community.tunnel.processes.rpcprocess import RPCProcess
 from Tribler.community.tunnel.processes.subprocess import Subprocess
 from Tribler.Core.Session import Session

@@ -1,13 +1,3 @@
-import io
-import os
-import threading
-
-from twisted.internet import reactor
-from twisted.internet.defer import Deferred, inlineCallbacks
-
-from Tribler.community.tunnel.processes.iprocess import IProcess
-from Tribler.community.tunnel.processes.line_util import pack_data, unpack_complex
-
 """Each subprocess has 6 additional file descriptors
 (next to the stdin, stdout and stderr). These are:
 
@@ -19,18 +9,28 @@ from Tribler.community.tunnel.processes.line_util import pack_data, unpack_compl
  - exit_out: for responding to exit signals
 """
 
-FNO_CTRL_IN  = 3
+import io
+import os
+import threading
+
+from twisted.internet import reactor
+from twisted.internet.defer import Deferred, inlineCallbacks
+
+from Tribler.community.tunnel.processes.iprocess import IProcess
+from Tribler.community.tunnel.processes.line_util import pack_data, unpack_complex
+
+FNO_CTRL_IN = 3
 FNO_CTRL_OUT = 4
-FNO_DATA_IN  = 5
+FNO_DATA_IN = 5
 FNO_DATA_OUT = 6
-FNO_EXIT_IN  = 7
+FNO_EXIT_IN = 7
 FNO_EXIT_OUT = 8
 
-FILE_CTRL_IN  = io.open(FNO_CTRL_IN,  "rb", 0)
+FILE_CTRL_IN = io.open(FNO_CTRL_IN, "rb", 0)
 FILE_CTRL_OUT = io.open(FNO_CTRL_OUT, "wb", 0)
-FILE_DATA_IN  = io.open(FNO_DATA_IN,  "rb", 0)
+FILE_DATA_IN = io.open(FNO_DATA_IN, "rb", 0)
 FILE_DATA_OUT = io.open(FNO_DATA_OUT, "wb", 0)
-FILE_EXIT_IN  = io.open(FNO_EXIT_IN,  "rb", 0)
+FILE_EXIT_IN = io.open(FNO_EXIT_IN, "rb", 0)
 FILE_EXIT_OUT = io.open(FNO_EXIT_OUT, "wb", 0)
 
 LOCK_CTRL = threading.Lock()
@@ -68,7 +68,7 @@ class LineConsumer(threading.Thread):
         while not self.file_obj.closed:
             try:
                 line += self.file_obj.readline()
-            except IOError as e:
+            except IOError:
                 break
             if line.endswith('\n') and len(line) > 8:
                 line, data = unpack_complex(line)
@@ -82,7 +82,7 @@ class Subprocess(IProcess):
         Overwritten by the subprocess for more advanced
         functionality.
     """
-    
+
     def __init__(self):
         """Initialize a new Subprocess
 
@@ -128,7 +128,8 @@ class Subprocess(IProcess):
         """
         Subprocess.write(FILE_EXIT_OUT, s, LOCK_EXIT)
 
-    def close_all_streams(self):
+    @staticmethod
+    def close_all_streams():
         """Close all registered file descriptors
 
         :returns: None

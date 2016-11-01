@@ -55,16 +55,15 @@ class ChildProcess(ProcessProtocol, IProcess):
                              env=environ,
                              path=fixed_path,
                              childFDs={
-                                        0: 0,   # std in
-                                        1: 1,   # std out
-                                        2: 2,   # std err
-                                        3: "w", # ctrl in
-                                        4: "r", # ctrl out
-                                        5: "w", # data in
-                                        6: "r", # data out
-                                        7: "w", # exit in
-                                        8: "r"  # exit out
-                                      })
+                                 0: 0,   # std in
+                                 1: 1,   # std out
+                                 2: 2,   # std err
+                                 3: "w", # ctrl in
+                                 4: "r", # ctrl out
+                                 5: "w", # data in
+                                 6: "r", # data out
+                                 7: "w", # exit in
+                                 8: "r"})# exit out
 
     def write_ctrl(self, s):
         """Write a control message to the process

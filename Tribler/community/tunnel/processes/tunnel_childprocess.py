@@ -6,7 +6,13 @@ from twisted.internet.defer import Deferred, inlineCallbacks, returnValue
 
 from Tribler.community.tunnel.processes.childprocess import ChildProcess
 from Tribler.community.tunnel.processes.line_util import fix_split
-from Tribler.community.tunnel.processes.rpc_defs import *
+from Tribler.community.tunnel.processes.rpc_defs import (RPC_RESPONSE_OK,
+                                                         RPC_CREATE,
+                                                         RPC_NOTIFY,
+                                                         RPC_SYNC,
+                                                         RPC_MONITOR,
+                                                         RPC_CIRCUIT,
+                                                         RPC_CIRDEAD)
 from Tribler.community.tunnel.processes.rpcprocess import RPCProcess
 from Tribler.community.tunnel.remotes.remote_object import RemoteObject
 
@@ -143,12 +149,12 @@ class TunnelProcess(RPCProcess, ChildProcess):
         serialized_cd_list = ','.join([cd[0] + ':' + str(cd[1])
                                        for cd in cd_list])
         self.write_data(';'.join([serialized_cd_list,
-                                 str(circuit_id),
-                                 dest_address[0] + ':'
-                                 + str(dest_address[1]),
-                                 source_address[0] + ':'
-                                 + str(source_address[1]),
-                                 data]))
+                                  str(circuit_id),
+                                  dest_address[0] + ':'
+                                  + str(dest_address[1]),
+                                  source_address[0] + ':'
+                                  + str(source_address[1]),
+                                  data]))
 
     def on_data(self, s):
         """Callback for incoming data

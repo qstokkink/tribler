@@ -60,7 +60,7 @@ class ProcessManager(object):
         count = self.get_worker_count()
         if count < value:
             # We have too little workers, create more
-            for i in range(value - count):
+            for _ in range(value - count):
                 def on_worker(worker):
                     self.pool[worker.pid] = worker
                 self._create_worker(on_worker)
@@ -174,12 +174,12 @@ class ProcessManager(object):
         circuit_id = False
         for worker in sorted(self.pool,
                              key=lambda x: (
-                                self.circuit_map.values().count(x))):
+                                 self.circuit_map.values().count(x))):
             circuit_id = \
                 self.pool[worker].create_circuit(goal_hops,
-                                                  ctype,
-                                                  required_endpoint,
-                                                  info_hash)
+                                                 ctype,
+                                                 required_endpoint,
+                                                 info_hash)
             if circuit_id:
                 self.circuit_map[circuit_id] = worker
                 break

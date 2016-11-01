@@ -302,7 +302,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
     def do_dht_lookup(self, info_hash):
         # Select a circuit from the pool of exit circuits
         self.tunnel_logger.info("Do DHT request: select circuit")
-        if not info_hash in self.infohash_to_hop:
+        if info_hash not in self.infohash_to_hop:
             return False
         circuit = self.selection_strategy.select(None, self.infohash_to_hop[info_hash])
         if not circuit:
