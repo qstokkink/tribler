@@ -400,9 +400,10 @@ class TunnelCommunity(Community):
     def initiate_conversions(self):
         return [DefaultConversion(self), TunnelConversion(self)]
 
+    @inlineCallbacks
     def unload_community(self):
         if self.socks_server:
-            self.socks_server.stop()
+            yield self.socks_server.stop()
 
         # Remove all circuits/relays/exitsockets
         for circuit_id in self.circuits.keys():
@@ -412,7 +413,7 @@ class TunnelCommunity(Community):
         for circuit_id in self.exit_sockets.keys():
             self.remove_exit_socket(circuit_id, 'unload', destroy=True)
 
-        super(TunnelCommunity, self).unload_community()
+        yield super(TunnelCommunity, self).unload_community()
 
     @property
     def crypto(self):
