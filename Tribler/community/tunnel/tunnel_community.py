@@ -328,6 +328,7 @@ class TunnelCommunity(Community):
 
         if self.trsession:
             self.notifier = self.trsession.notifier
+            self.trsession.lm.tunnel_community = self
 
     def self_is_connectable(self):
         return self._dispersy._connection_type == u"public"
@@ -915,7 +916,7 @@ class TunnelCommunity(Community):
         circuit.unverified_hop = None
 
         if circuit.state == CIRCUIT_STATE_EXTENDING:
-            ignore_candidates = circuit.hops + \
+            ignore_candidates = [self.hops[h].node_public_key for h in circuit.hops] + \
                 [self.my_member.public_key]
             if circuit.required_endpoint:
                 ignore_candidates.append(circuit.required_endpoint[2])
