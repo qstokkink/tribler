@@ -65,7 +65,7 @@ def unpack_complex(line):
         return line, data
     elif target < len(line):
         # keep past target-8, share up to target-8
-        return data[target-8:], data[:target-8]
+        return line[target:], data[:target-9]
     return line, None
 
 
