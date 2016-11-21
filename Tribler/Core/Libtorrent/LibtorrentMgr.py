@@ -1,6 +1,7 @@
 # Written by Egbert Bouman
 import binascii
 import logging
+import random
 from urllib import url2pathname
 import tempfile
 import threading
@@ -56,6 +57,9 @@ class LibtorrentMgr(TaskManager):
         self.metainfo_lock = threading.RLock()
         self.metainfo_cache = {}
 
+        self.process_alerts_lc = self.register_task("process_alerts", LoopingCall(self._task_process_alerts))
+        self.check_reachability_lc = self.register_task("check_reachability", LoopingCall(self._check_reachability))
+
     @blocking_call_on_reactor_thread
     def initialize(self):
         # start upnp
@@ -65,8 +69,8 @@ class LibtorrentMgr(TaskManager):
         self.metadata_tmpdir = tempfile.mkdtemp(suffix=u'tribler_metainfo_tmpdir')
 
         # register tasks
-        self.register_task(u'process_alerts', reactor.callLater(1, self._task_process_alerts))
-        self.register_task(u'check_reachability', reactor.callLater(1, self._task_check_reachability))
+        self.process_alerts_lc.start(1, now=False)
+        self.check_reachability_lc.start(5, now=True)
         self._schedule_next_check(5, DHT_CHECK_RETRIES)
 
         self.register_task(u'task_cleanup_metacache',
@@ -329,7 +333,8 @@ class LibtorrentMgr(TaskManager):
             self._logger.info("DHT not ready, rescheduling get_metainfo")
 
             def schedule_call():
-                self.register_task("schedule_metainfo_lookup",
+                random_id = ''.join(random.choice('0123456789abcdef') for _ in xrange(30))
+                self.register_task("schedule_metainfo_lookup_%s" % random_id,
                                    reactor.callLater(5, lambda i=infohash_or_magnet, c=callback, t=timeout - 5,
                                                   tcb=timeout_callback, n=notify: self.get_metainfo(i, c, t, tcb, n)))
 
@@ -378,7 +383,8 @@ class LibtorrentMgr(TaskManager):
                                                     'notify': notify}
 
                 def schedule_call():
-                    self.register_task("schedule_got_metainfo_lookup",
+                    random_id = ''.join(random.choice('0123456789abcdef') for _ in xrange(30))
+                    self.register_task("schedule_got_metainfo_lookup_%s" % random_id,
                                        reactor.callLater(timeout, lambda: self.got_metainfo(infohash, timeout=True)))
 
                 reactor.callFromThread(schedule_call)
@@ -471,14 +477,10 @@ class LibtorrentMgr(TaskManager):
                 for alert in ltsession.pop_alerts():
                     self.process_alert(alert)
 
-        self.register_task(u'process_alerts', reactor.callLater(1, self._task_process_alerts))
-
-    def _task_check_reachability(self):
+    def _check_reachability(self):
         if self.get_session() and self.get_session().status().has_incoming_connections:
-            notify_reachability = lambda: self.notifier.notify(NTFY_REACHABLE, NTFY_INSERT, None, '')
-            self.register_task(u'notify_reachability', reactor.callLater(3, notify_reachability))
-        else:
-            self.register_task(u'check_reachability', reactor.callLater(10, self._task_check_reachability))
+            self.notifier.notify(NTFY_REACHABLE, NTFY_INSERT, None, '')
+            self.check_reachability_lc.stop()
 
     @call_on_reactor_thread
     def _schedule_next_check(self, delay, retries_left):

@@ -66,20 +66,21 @@ class TriblerServiceMaker(object):
         """
         Main method to startup Tribler.
         """
+        def on_tribler_shutdown(_):
+            msg("Tribler shut down")
+            reactor.stop()
+            self.process_checker.remove_lock_file()
 
         def signal_handler(sig, _):
             msg("Received shut down signal %s" % sig)
             if not self._stopping:
                 self._stopping = True
-                self.session.shutdown()
-                msg("Tribler shut down")
-                reactor.stop()
-                self.process_checker.remove_lock_file()
+                self.session.shutdown().addCallback(on_tribler_shutdown)
 
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
 
-        config = SessionStartupConfig()
+        config = SessionStartupConfig().load()  # Load the default configuration file
         config.set_http_api_enabled(True)
 
         # Check if we are already running a Tribler instance

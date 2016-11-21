@@ -9,7 +9,9 @@ from binascii import hexlify
 import time
 
 from twisted.internet import threads
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, fail
+from twisted.python.failure import Failure
+from twisted.python.log import addObserver
 from twisted.python.threadable import isInIOThread
 from Tribler.Core.DownloadConfig import DefaultDownloadStartupConfig, get_default_dest_dir
 
@@ -17,12 +19,14 @@ from Tribler.Core.Utilities import torrent_utils
 from Tribler.Core import NoDispersyRLock
 from Tribler.Core.APIImplementation.LaunchManyCore import TriblerLaunchMany
 from Tribler.Core.CacheDB.Notifier import Notifier
-from Tribler.Core.CacheDB.sqlitecachedb import SQLiteCacheDB, DB_FILE_RELATIVE_PATH, DB_SCRIPT_RELATIVE_PATH
+from Tribler.Core.CacheDB.sqlitecachedb import SQLiteCacheDB, DB_FILE_RELATIVE_PATH, DB_SCRIPT_NAME
 from Tribler.Core.Config.tribler_config import TriblerConfig
 from Tribler.Core.Modules.restapi.rest_manager import RESTManager
 from Tribler.Core.SessionConfig import SessionConfigInterface, SessionStartupConfig
 from Tribler.Core.Upgrade.upgrade import TriblerUpgrader
 from Tribler.Core.Utilities.configparser import CallbackConfigParser
+from Tribler.Core.Utilities.crypto_patcher import patch_crypto_be_discovery
+from Tribler.Core.Utilities.install_dir import get_lib_path
 from Tribler.Core.defaults import tribler_defaults
 from Tribler.Core.exceptions import NotYetImplementedException, OperationNotEnabledByConfigurationException, \
     DuplicateTorrentFileError
@@ -69,6 +73,10 @@ class Session(SessionConfigInterface):
         In the current implementation only a single session instance can exist
         at a time in a process. The ignore_singleton flag is used for testing.
         """
+        addObserver(self.unhandled_error_observer)
+
+        patch_crypto_be_discovery()
+
         if not ignore_singleton:
             if Session.__single:
                 raise RuntimeError("Session is singleton")
@@ -172,7 +180,7 @@ class Session(SessionConfigInterface):
         self.notifier = Notifier(use_pool=True)
 
         # Checkpoint startup config
-        self.save_pstate_sessconfig()
+        self.save_session_config()
 
         self.sqlite_db = None
         self.dispersy_member = None
@@ -185,21 +193,21 @@ class Session(SessionConfigInterface):
     @blocking_call_on_reactor_thread
     def prestart(self):
         """
-        Pre-starts the session. We check the current version and upgrade if needed
--        before we start everything else.
+        Pre-starts the session. We check the current version and upgrade if needed before we start everything else.
         """
         assert isInIOThread()
-        db_path = os.path.join(self.get_state_dir(), DB_FILE_RELATIVE_PATH)
-        db_script_path = os.path.join(self.get_install_dir(), DB_SCRIPT_RELATIVE_PATH)
-
-        self.sqlite_db = SQLiteCacheDB(db_path, db_script_path)
-        self.sqlite_db.initialize()
-        self.sqlite_db.initial_begin()
 
         # Start the REST API before the upgrader since we want to send interesting upgrader events over the socket
         if self.get_http_api_enabled():
             self.lm.api_manager = RESTManager(self)
             self.lm.api_manager.start()
+
+        db_path = os.path.join(self.get_state_dir(), DB_FILE_RELATIVE_PATH)
+        db_script_path = os.path.join(get_lib_path(), DB_SCRIPT_NAME)
+
+        self.sqlite_db = SQLiteCacheDB(db_path, db_script_path)
+        self.sqlite_db.initialize()
+        self.sqlite_db.initial_begin()
 
         self.upgrader = TriblerUpgrader(self, self.sqlite_db)
         self.upgrader.run()
@@ -225,6 +233,21 @@ class Session(SessionConfigInterface):
     @staticmethod
     def del_instance():
         Session.__single = None
+
+    def unhandled_error_observer(self, event):
+        """
+        This method is called when an unhandled error in Tribler is observed. Broadcasts the tribler_exception event.
+        """
+        if event['isError']:
+            text = ""
+            if 'log_legacy' in event and 'log_text' in event:
+                text = event['log_text']
+            elif 'log_failure' in event:
+                text = str(event['log_failure'])
+
+            if self.lm.api_manager and len(text) > 0:
+                self.lm.api_manager.root_endpoint.events_endpoint.on_tribler_exception(text)
+                self.lm.api_manager.root_endpoint.state_endpoint.on_tribler_exception(text)
 
     #
     # Public methods
@@ -508,43 +531,42 @@ class Session(SessionConfigInterface):
 
         self.lm.load_checkpoint(initialdlstatus_dict=initialdlstatus_dict)
 
-    def checkpoint(self):
-        """ Saves the internal session state to the Session's state dir. """
-        # Called by any thread
-        self.checkpoint_shutdown(stop=False, checkpoint=True, gracetime=None, hacksessconfcheckpoint=False)
-
     @blocking_call_on_reactor_thread
     def start(self):
-        """ Create the LaunchManyCore instance and start it"""
-
-        # Create engine with network thread
+        """
+        Start a Tribler session by initializing the LaunchManyCore class.
+        Returns a deferred that fires when the Tribler session is ready for use.
+        """
         startup_deferred = self.lm.register(self, self.sesslock)
 
-        if self.get_libtorrent():
-            self.load_checkpoint()
+        def load_checkpoint(_):
+            if self.get_libtorrent():
+                self.load_checkpoint()
 
         self.sessconfig.set_callback(self.lm.sessconfig_changed_callback)
 
-        return startup_deferred
+        return startup_deferred.addCallback(load_checkpoint)
 
     @blocking_call_on_reactor_thread
-    def shutdown(self, checkpoint=True, gracetime=2.0, hacksessconfcheckpoint=True):
-        """ Checkpoints the session and closes it, stopping the download engine.
-        @param checkpoint Whether to checkpoint the Session state on shutdown.
-        @param gracetime Time to allow for graceful shutdown + signoff (seconds).
+    def shutdown(self):
         """
-        # Has to be called from the reactor thread
+        Checkpoints the session and closes it, stopping the download engine.
+        This method has to be called from the reactor thread.
+        """
         assert isInIOThread()
 
         @inlineCallbacks
         def on_early_shutdown_complete(_):
             """
-            Callback that gets called when the early shutdown has been compelted.
+            Callback that gets called when the early shutdown has been completed.
             Continues the shutdown procedure that is dependant on the early shutdown.
             :param _: ignored parameter of the Deferred
             """
-            yield self.checkpoint_shutdown(stop=True, checkpoint=checkpoint,
-                                 gracetime=gracetime, hacksessconfcheckpoint=hacksessconfcheckpoint)
+            self.save_session_config()
+            yield self.checkpoint_downloads()
+            self.lm.shutdown_downloads()
+            self.lm.network_shutdown()
+
             if self.sqlite_db:
                 self.sqlite_db.close()
             self.sqlite_db = None
@@ -633,31 +655,13 @@ class Session(SessionConfigInterface):
     #
     # Internal persistence methods
     #
-    def checkpoint_shutdown(self, stop, checkpoint, gracetime, hacksessconfcheckpoint):
-        """ Checkpoints the Session and optionally shuts down the Session.
-        @param stop Whether to shutdown the Session as well.
-        @param checkpoint Whether to checkpoint at all, or just to stop.
-        @param gracetime Time to allow for graceful shutdown + signoff (seconds).
+    def checkpoint_downloads(self):
         """
-        # Called by any thread
-        with self.sesslock:
-            # Arno: Make checkpoint optional on shutdown. At the moment setting
-            # the config at runtime is not possible (see SessionRuntimeConfig)
-            # so this has little use, and interferes with our way of
-            # changing the startup config, which is to write a new
-            # config to disk that will be read at start up.
-            if hacksessconfcheckpoint:
-                try:
-                    self.save_pstate_sessconfig()
-                except Exception as e:
-                    self._logger.error("save_pstate_sessconfig() failed with error: %s", e)
+        Checkpoints the downloads in Tribler.
+        """
+        return self.lm.checkpoint_downloads()
 
-            # Checkpoint all Downloads and stop NetworkThread
-            if stop:
-                self._logger.debug("Session: checkpoint_shutdown")
-            return self.lm.checkpoint(stop=stop, checkpoint=checkpoint, gracetime=gracetime)
-
-    def save_pstate_sessconfig(self):
+    def save_session_config(self):
         """ Save the runtime SessionConfig to disk """
         # Called by any thread
         sscfg = self.get_current_startup_config_copy()
@@ -784,13 +788,14 @@ class Session(SessionConfigInterface):
                 data = channelcast_db.getTorrentFromChannelId(channel_id, torrent_def.infohash, ['ChannelTorrents.id'])
                 community.modifyTorrent(data, {'description': desc}, forward=forward)
 
-    def check_torrent_health(self, infohash):
+    def check_torrent_health(self, infohash, timeout=20, scrape_now=False):
         """
         Checks the given torrent's health on its trackers.
         :param infohash: The given torrent infohash.
         """
         if self.lm.torrent_checker:
-            self.lm.torrent_checker.add_gui_request(infohash)
+            return self.lm.torrent_checker.add_gui_request(infohash, timeout=timeout, scrape_now=scrape_now)
+        return fail(Failure(RuntimeError("Torrent checker not available")))
 
     def set_max_upload_speed(self, rate):
         """

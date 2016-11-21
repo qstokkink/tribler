@@ -47,8 +47,8 @@ class DownloadBaseEndpoint(resource.Resource):
                 and parameters['safe_seeding'][0] == "1":
             safe_seeding = True
 
-        if anon_hops <= 0 and safe_seeding:
-            return None, "Cannot set safe_seeding without anonymous download enabled"
+        if anon_hops > 0 and not safe_seeding:
+            return None, "Cannot set anonymous download without safe seeding enabled"
 
         if anon_hops > 0:
             download_config.set_hops(anon_hops)
@@ -60,6 +60,10 @@ class DownloadBaseEndpoint(resource.Resource):
             if not os.path.isdir(parameters['destination'][0]):
                 return None, "Invalid destination directory specified"
             download_config.set_dest_dir(parameters['destination'][0])
+
+        if 'selected_files[]' in parameters:
+            selected_files_list = [unicode(f, 'utf-8') for f in parameters['selected_files[]']]
+            download_config.set_selected_files(selected_files_list)
 
         return download_config, None
 
@@ -254,7 +258,8 @@ class DownloadsEndpoint(DownloadBaseEndpoint):
             request.write(json.dumps({"error": error.getErrorMessage()}))
             request.finish()
 
-        download_deferred = self.session.start_download_from_uri(parameters['uri'][0], download_config)
+        download_deferred = self.session.start_download_from_uri(
+            unicode(parameters['uri'][0], 'utf-8'), download_config)
         download_deferred.addCallback(download_added)
         download_deferred.addErrback(on_error)
 
