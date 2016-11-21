@@ -4,12 +4,13 @@ from binascii import hexlify, unhexlify
 
 
 def shared(is_id=False):
-    """Annotation function to flag a function as a field/property
-        of an object which needs to be serialized and unserialized
-        for synchronization across processes.
+    """
+    Annotation function to flag a function as a field/property
+    of an object which needs to be serialized and unserialized
+    for synchronization across processes.
 
-        :param is_id: this is the unique id of the class (for syncing)
-        :param is_id: bool or func
+    :param is_id: this is the unique id of the class (for syncing)
+    :param is_id: bool or func
     """
     def make_prop(f, id_field):
         def get_val(cls):
@@ -35,11 +36,13 @@ def shared(is_id=False):
 
 class RemoteObject(object):
 
-    """A generic object which can be serialized and deserialized
+    """
+    A generic object which can be serialized and deserialized
     """
 
     def __is_dirty__(self):
-        """Have any of the shared fields been modified
+        """
+        Have any of the shared fields been modified
 
         :return: True iff any of the @shared fields have been modified
         :rtype: bool
@@ -50,7 +53,8 @@ class RemoteObject(object):
 
     @staticmethod
     def __extract_class_name__(s):
-        """Extract the class name from a serialized form
+        """
+        Extract the class name from a serialized form
 
         :param s: the serialized object
         :type s: str
@@ -63,7 +67,8 @@ class RemoteObject(object):
 
     @classmethod
     def __serialize__(cls, instance, only_update=True):
-        """Serialize an instance of a class to string
+        """
+        Serialize an instance of a class to string
 
         :param cls: the RemoteObject class type to serialize as
         :type cls: type
@@ -102,7 +107,8 @@ class RemoteObject(object):
 
     @classmethod
     def __unserialize__(cls, s, known={}):
-        """Deserialize a string to a RemoteObject or update one
+        """
+        Deserialize a string to a RemoteObject or update one
 
         :param cls: the RemoteObject class type to deserialize
         :type cls: type

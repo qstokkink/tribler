@@ -163,7 +163,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         self.tunnel_logger = logging.getLogger('TunnelLogger')
 
-        self.infohash_to_hop = {}
+        self.infohash_to_hop_dict = {}
 
     def initiate_meta_messages(self):
         return super(HiddenTunnelCommunity, self).initiate_meta_messages() + \
@@ -242,7 +242,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
     @call_on_reactor_thread
     def monitor_infohashes(self, infohashes):
-        """Monitor tuples of (infohash, hop_count, DownloadState.get_status())
+        """
+        Monitor tuples of (infohash, hop_count, DownloadState.get_status())
         """
         # Monitor downloads with anonymous flag set, and build rendezvous/introduction points when needed.
         new_states = {}
@@ -254,7 +255,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             hops[info_hash] = hop_count
             new_states[info_hash] = status
 
-        self.infohash_to_hop = hops
+        self.infohash_to_hop_dict = hops
 
         for info_hash in set(new_states.keys() + self.download_states.keys()):
             new_state = new_states.get(info_hash, None)
@@ -302,9 +303,9 @@ class HiddenTunnelCommunity(TunnelCommunity):
     def do_dht_lookup(self, info_hash):
         # Select a circuit from the pool of exit circuits
         self.tunnel_logger.info("Do DHT request: select circuit")
-        if info_hash not in self.infohash_to_hop:
+        if info_hash not in self.infohash_to_hop_dict:
             return False
-        circuit = self.selection_strategy.select(None, self.infohash_to_hop[info_hash])
+        circuit = self.selection_strategy.select(None, self.infohash_to_hop_dict[info_hash])
         if not circuit:
             self.tunnel_logger.info("No circuit for dht-request")
             return False
@@ -382,8 +383,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
         # 1. Select a circuit
         self.tunnel_logger.info("Create key request: select circuit")
         circuit = self.selection_strategy.select(
-            None, self.infohash_to_hop[info_hash])\
-            if info_hash in self.infohash_to_hop else None
+            None, self.infohash_to_hop_dict[info_hash])\
+            if info_hash in self.infohash_to_hop_dict else None
         if not circuit:
             self.tunnel_logger.error("No circuit for key-request")
             return False
@@ -507,7 +508,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                 relay_circuit.tunnel_data(message.candidate.sock_addr, TUNNEL_PREFIX + message.packet)
             else:
                 self.tunnel_logger.info('On create e2e: create rendezvous point')
-                self.create_rendezvous_point(self.infohash_to_hop[message.payload.info_hash],
+                self.create_rendezvous_point(self.infohash_to_hop_dict[message.payload.info_hash],
                                              lambda rendezvous_point, message=message:
                                              self.create_created_e2e(rendezvous_point,
                                              message), message.payload.info_hash)
@@ -559,7 +560,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
             # Since it is the seeder that chose the rendezvous_point, we're essentially losing 1 hop of anonymity
             # at the downloader end. To compensate we add an extra hop.
-            self.create_circuit(self.infohash_to_hop[cache.info_hash] + 1,
+            self.create_circuit(self.infohash_to_hop_dict[cache.info_hash] + 1,
                                 CIRCUIT_TYPE_RENDEZVOUS,
                                 callback=lambda circuit, cookie=rp_info[1], session_keys=session_keys,
                                 info_hash=cache.info_hash, sock_addr=cache.sock_addr: self.create_link_e2e(circuit,
@@ -656,10 +657,10 @@ class HiddenTunnelCommunity(TunnelCommunity):
             if self.notifier:
                 self.notifier.notify(NTFY_TUNNEL, NTFY_IP_CREATED, info_hash.encode('hex')[:6], circuit_id)
 
-        for _ in range(amount):
+        for _ in xrange(amount):
             # Create a circuit to the introduction point + 1 hop, to prevent the introduction
             # point from knowing what the seeder is seeding
-            circuit_id = self.create_circuit(self.infohash_to_hop[info_hash] + 1,
+            circuit_id = self.create_circuit(self.infohash_to_hop_dict[info_hash] + 1,
                                              CIRCUIT_TYPE_IP,
                                              callback,
                                              info_hash=info_hash)
@@ -765,5 +766,5 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.tunnel_logger.error("Need a Tribler session to announce to the DHT")
 
     @classmethod
-    def get_lookup_info_hash(self, info_hash):
+    def get_lookup_info_hash(cls, info_hash):
         return hashlib.sha1('tribler anonymous download' + info_hash.encode('hex')).digest()

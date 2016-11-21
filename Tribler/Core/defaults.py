@@ -89,7 +89,6 @@ sessdefaults['tunnel_community']['socks5_listen_ports'] = [-1] * 5
 sessdefaults['tunnel_community']['exitnode_enabled'] = False
 sessdefaults['tunnel_community']['enabled'] = True
 sessdefaults['tunnel_community']['pooled'] = False
-sessdefaults['tunnel_community']['test_pooled'] = False
 
 # Multichain community section
 sessdefaults['multichain'] = OrderedDict()

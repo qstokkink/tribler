@@ -14,15 +14,17 @@ from Tribler.community.tunnel.processes.line_util import pack_data, unpack_compl
 
 class ChildProcess(ProcessProtocol, IProcess):
 
-    """Wrapper for a child process
+    """
+    Wrapper for a child process
 
-        Used for creating child processes and communicating
-        with them. To be overwritten for advanced
-        functionality.
+    Used for creating child processes and communicating
+    with them. To be overwritten for advanced
+    functionality.
     """
 
     def __init__(self):
-        """Initialize a ChildProcess and spawn it
+        """
+        Initialize a ChildProcess and spawn it
 
         This spawns a process in the only multiplatform
         portable way. Using whatever executable and
@@ -66,7 +68,8 @@ class ChildProcess(ProcessProtocol, IProcess):
                                  8: "r"})# exit out
 
     def write_ctrl(self, s):
-        """Write a control message to the process
+        """
+        Write a control message to the process
 
         :param s: the message to send
         :type s: str
@@ -75,7 +78,8 @@ class ChildProcess(ProcessProtocol, IProcess):
         reactor.callFromThread(self.raw_write, 3, s)
 
     def write_data(self, s):
-        """Write raw data to the process
+        """
+        Write raw data to the process
 
         :param s: the message to send
         :type s: str
@@ -84,7 +88,8 @@ class ChildProcess(ProcessProtocol, IProcess):
         reactor.callFromThread(self.raw_write, 5, s)
 
     def write_exit(self, s):
-        """Write an exit message to the process
+        """
+        Write an exit message to the process
 
         :param s: the message to send
         :type s: str
@@ -93,7 +98,8 @@ class ChildProcess(ProcessProtocol, IProcess):
         reactor.callFromThread(self.raw_write, 7, s)
 
     def raw_write(self, fd, data):
-        """Write data to a child's file descriptor
+        """
+        Write data to a child's file descriptor
 
         :param fd: the file descriptor to write to
         :type fd: int
@@ -108,7 +114,8 @@ class ChildProcess(ProcessProtocol, IProcess):
             self.transport.writeToChild(fd, pack_data(data))
 
     def connectionMade(self):
-        """Notify users that this process is ready to go
+        """
+        Notify users that this process is ready to go
 
         :returns: None
         """
@@ -117,7 +124,8 @@ class ChildProcess(ProcessProtocol, IProcess):
         reactor.callLater(1.0, self.started.callback, self)
 
     def childDataReceived(self, childFD, data):
-        """Fired when the process sends us something
+        """
+        Fired when the process sends us something
 
         :param childFD: the file descriptor which was used
         :type childFD: int
@@ -150,7 +158,8 @@ class ChildProcess(ProcessProtocol, IProcess):
         self.databuffers[childFD] += partitions[-1]
 
     def childConnectionLost(self, childFD):
-        """Fired when a childFD is closed
+        """
+        Fired when a childFD is closed
 
         This is probably the result of a process shutdown
 
@@ -165,17 +174,19 @@ class ChildProcess(ProcessProtocol, IProcess):
         self.transport.closeChildFD(childFD)
 
     def processEnded(self, status):
-        """Fired when the process ends
+        """
+        Fired when the process ends
 
         :param status: the exit status
         :type status: twisted.python.failure.Failure
         :returns: None
         """
-        for i in range(9):
+        for i in xrange(9):
             self.transport.closeChildFD(i)
 
     def terminate(self):
-        """Terminate this process forcefully
+        """
+        Terminate this process forcefully
 
         :returns: None
         """

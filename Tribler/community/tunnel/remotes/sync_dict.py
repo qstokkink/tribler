@@ -7,19 +7,30 @@ from Tribler.community.tunnel.remotes.remote_object import RemoteObject
 
 class SyncDict(dict):
 
-    """A dictionary which syncs its items with other SyncDicts
+    """
+    A dictionary which syncs its items with other SyncDicts
+
+    This class exists ot synchronize RemoteObjects between a master and
+    a slave class. Once the SyncDict of the master changes, the slave
+    is updated at the next synchronization event (default = every 5
+    seconds). Once a synchronization event occurs, the SyncDict will
+    produce a string with which to update the slave SyncDict.
+
+    Optionally, one can also have localization on the slave through
+    an intialization callback.
     """
 
-    def __init__(self, cls, task_manager=None, callback=lambda x: None,
+    def __init__(self, cls, callback=lambda x: None,
                  init_callback=None, sync_interval=5.0):
-        """Create a new sync dict for a certain class type
+        """
+        Create a new sync dict for a certain class type
 
         :param cls: the type of RemoteObject to store
         :type cls: type
-        :param task_manager: the TaskManager to register with
-        :type task_manager: Tribler.dispersy.taskmanager.TaskManager
         :param callback: the callback to call with serialized data
         :type callback: func
+        :param init_callback: the callback to call to localize objects
+        :type init_callback: func
         :param sync_interval: how often to check for dirty objects
         :type sync_interval: float
         :returns: None
@@ -33,11 +44,9 @@ class SyncDict(dict):
         self.callback = callback
         self.init_callback = init_callback
 
-        if task_manager and sync_interval > 0:
-            self.register_task(task_manager)
-
-    def register_task(self, task_manager):
-        """Register a LoopingCall with a TaskManager
+    def register_sync_task(self, task_manager):
+        """
+        Register a LoopingCall with a TaskManager
 
         :param task_manager: the TaskManager to register with
         :type task_manager: Tribler.dispersy.taskmanager.TaskManager
@@ -50,7 +59,8 @@ class SyncDict(dict):
                                               now=True)
 
     def is_same_type(self, cls_name):
-        """Check if a class name is equal to our stored class
+        """
+        Check if a class name is equal to our stored class
 
         :param cls_name: the name to check for
         :type cls_name: str
@@ -60,7 +70,8 @@ class SyncDict(dict):
         return self.cls.__name__ == cls_name
 
     def synchronize(self, only_update=True):
-        """Callback to check if any objects need to be synchronized
+        """
+        Callback to check if any objects need to be synchronized
 
         Calls self.callback with a string as an argument (serialized
         data) for each object that needs to be updated.
@@ -81,7 +92,8 @@ class SyncDict(dict):
                               self.cls.__name__)
 
     def on_synchronize(self, value):
-        """Synchronize with a frame from another SyncDict
+        """
+        Synchronize with a frame from another SyncDict
 
         :param value: the update frame
         :type value: str

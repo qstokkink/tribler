@@ -217,7 +217,7 @@ class TunnelSettings(object):
         self.tunnel_logger = logging.getLogger('TunnelLogger')
 
         self.crypto = TunnelCrypto()
-        self.socks_listen_ports = range(1080, 1085)
+        self.socks_listen_ports = xrange(1080, 1085)
 
         self.min_circuits = 4
         self.max_circuits = 8
@@ -308,8 +308,8 @@ class TunnelCommunity(Community):
 
         super(TunnelCommunity, self).initialize()
 
-        self.circuits.register_task(self)
-        self.hops.register_task(self)
+        self.circuits.register_sync_task(self)
+        self.hops.register_sync_task(self)
 
         assert isinstance(self.settings.crypto, TunnelCrypto), self.settings.crypto
 
@@ -446,7 +446,7 @@ class TunnelCommunity(Community):
         for circuit_length, num_circuits in self.circuits_needed.items():
             num_to_build = num_circuits - len(self.data_circuits(circuit_length))
             self.tunnel_logger.info("want %d data circuits of length %d", num_to_build, circuit_length)
-            for _ in range(num_to_build):
+            for _ in xrange(num_to_build):
                 if not self.create_circuit(circuit_length):
                     self.tunnel_logger.info("circuit creation of %d circuits failed, no need to continue" %
                                              num_to_build)
@@ -917,7 +917,7 @@ class TunnelCommunity(Community):
         circuit.unverified_hop = None
 
         if circuit.state == CIRCUIT_STATE_EXTENDING:
-            ignore_candidates = [self.hops[h].node_public_key for h in circuit.hops] + \
+            ignore_candidates = [self.hops[ahop].node_public_key for ahop in circuit.hops] + \
                 [self.my_member.public_key]
             if circuit.required_endpoint:
                 ignore_candidates.append(circuit.required_endpoint[2])
@@ -940,7 +940,7 @@ class TunnelCommunity(Community):
                     if ignore_candidate in candidate_list:
                         candidate_list.remove(ignore_candidate)
 
-                for i in range(len(candidate_list) - 1, -1, -1):
+                for i in xrange(len(candidate_list) - 1, -1, -1):
                     public_key = self.crypto.key_from_public_bin(candidate_list[i])
                     if not self.crypto.is_key_compatible(public_key):
                         candidate_list.pop(i)
@@ -1429,7 +1429,7 @@ class TunnelCommunity(Community):
                             "RelayRoute or TunnelExitSocket")
 
     def set_process(self, process):
-        """Set the TUnnelSubprocess we belong to
+        """Set the TunnelSubprocess we belong to
 
         :param process: the TunnelSubprocess we belong to
         """

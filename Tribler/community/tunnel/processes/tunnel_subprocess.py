@@ -26,19 +26,21 @@ from Tribler.dispersy.candidate import Candidate
 
 class TunnelSubprocess(RPCProcess, Subprocess):
 
-    """The child process's view of the parent process
+    """
+    The child process's view of the parent process
 
     In other words, this controls all of the constructs
     required by the parent process. Most importantly it
     manages a TunnelCommunity.
 
     TODO/Future work in this file:
-     - Forward notificiations
+     - Forward notifications
      - Forward bartercast statistics
     """
 
     def __init__(self):
-        """Initialize a new TunnelSubprocess
+        """
+        Initialize a new TunnelSubprocess
 
         :returns: None
         """
@@ -57,7 +59,8 @@ class TunnelSubprocess(RPCProcess, Subprocess):
 
     @inlineCallbacks
     def sync(self, data):
-        """Callback for when any SyncDict wants to sync data
+        """
+        Callback for when any SyncDict wants to sync data
 
         :param data: the data to synchronize
         :type data: str
@@ -67,7 +70,8 @@ class TunnelSubprocess(RPCProcess, Subprocess):
 
     @inlineCallbacks
     def circuit_dead(self, circuit_id):
-        """Callback for when a circuit is dead
+        """
+        Callback for when a circuit is dead
 
         :param circuit_id: the dead circuit id
         :type circuit_id: long
@@ -76,24 +80,8 @@ class TunnelSubprocess(RPCProcess, Subprocess):
         yield self.send_rpc(RPC_CIRDEAD, (circuit_id,))
 
     def on_session_started(self, subject, changetype, objectID, *args):
-        """Callback for when the local Session has started
-
-        Executed on the callback thread: we can't do anything here.
-
-        :param subject: the subject
-        :type subject: str
-        :param changetype: the change type
-        :type changetype: str
-        :param objectID: the change object
-        :type objectID: object
-        :param args: the optional arguments
-        :type args: [object]
-        :returns: None
         """
-        reactor.callFromThread(self.setup_community)
-
-    def setup_community(self):
-        """Callback for when the local Session has started
+        Callback for when the local Session has started
 
         :returns: None
         """
@@ -102,9 +90,10 @@ class TunnelSubprocess(RPCProcess, Subprocess):
         self.session_started = True
 
     def start_session(self, session):
-        """Attempt to start the local Session
+        """
+        Attempt to start the local Session
 
-            This can go wrong, in this case we attempt to soft-exit.
+        This can go wrong, in this case we attempt to soft-exit.
         """
         session.add_observer(self.on_session_started,
                              NTFY_TRIBLER,
@@ -123,30 +112,27 @@ class TunnelSubprocess(RPCProcess, Subprocess):
                 logging.error("Attempt to soft-exit failed: "
                               + str(sys.exc_info()[0]))
 
-    def on_rpc_create(self, keypair_filename, is_exit_node, test_mode):
-        """Initialize the local TunnelCommunity
+    def on_rpc_create(self, keypair_filename, is_exit_node):
+        """
+        Initialize the local TunnelCommunity
 
         :param keypair_filename: the path of the multichain ec file
         :type keypair_filename: str
         :param is_exit_node: is exit node enabled
         :type is_exit_node: bool
-        :param test_mode: is running in test mode (other master member)
-        :type test_mode: bool
         :return: RPC response code
         :rtype: str
         """
         # Set up a MiniSession
         config = SessionStartupConfig()
         working_dir = os.path.join(config.get_state_dir(),
-                                   "SUBPROCESS" + str(os.getpid()))
+                                   "tunnel_subprocess" + str(os.getpid()))
         if not os.path.exists(working_dir):
             os.makedirs(working_dir)
 
         # Configure MiniSession
         config.set_state_dir(working_dir)
         config.set_torrent_checking(False)
-        if not test_mode:
-            config.set_multicast_local_peer_discovery(False)
         config.set_http_api_enabled(False)
         config.set_torrent_store(False)
         config.set_enable_torrent_search(False)
@@ -163,7 +149,6 @@ class TunnelSubprocess(RPCProcess, Subprocess):
         config.sessconfig.set(u'general', u'minport', -1)
 
         config.set_tunnel_community_exitnode_enabled(is_exit_node)
-        config.set_tunnel_community_test_pooled(test_mode)
         if keypair_filename:
             config.set_multichain_permid_keypair_filename(
                 keypair_filename)
@@ -177,7 +162,8 @@ class TunnelSubprocess(RPCProcess, Subprocess):
         return RPC_RESPONSE_OK
 
     def on_rpc_monitor_infohashes(self, infohashes):
-        """Call monitor_infohashes
+        """
+        Call monitor_infohashes
 
         :param infohashes: the infohash tuples to monitor
         :type infohashes: [(str, int, int)]
@@ -185,6 +171,7 @@ class TunnelSubprocess(RPCProcess, Subprocess):
         :rtype: str
         """
         if not self.session_started:
+            logging.error("Attempted monitor_infohashes without Session")
             return RPC_RESPONSE_ERR
         self.community.monitor_infohashes([(unhexlify(infohash[0]),
                                             infohash[1],
@@ -194,7 +181,8 @@ class TunnelSubprocess(RPCProcess, Subprocess):
 
     def on_rpc_circuit(self, goal_hops, ctype, required_endpoint,
                        info_hash):
-        """Call create_circuit
+        """
+        Call create_circuit
 
         :param goal_hops: the hop count in the circuit
         :type goal_hops: int
@@ -208,6 +196,7 @@ class TunnelSubprocess(RPCProcess, Subprocess):
         :rtype: str
         """
         if not self.session_started:
+            logging.error("Attempted create_circuit without Session")
             return False
         return blockingCallFromThread(reactor,
                                       self.community.create_circuit,
@@ -217,16 +206,17 @@ class TunnelSubprocess(RPCProcess, Subprocess):
                                       required_endpoint,
                                       info_hash)
 
-    def on_data(self, s):
-        """Callback for when the main process wants us to send_data
+    def on_data(self, msg):
+        """
+        Callback for when the main process wants us to send_data
 
-        :param s: the serialized data
-        :type s: str
+        :param msg: the serialized data
+        :type msg: str
         :returns: None
         """
         s_cd_list, s_circuit_id,\
             s_d_addr, s_s_addr,\
-            data = fix_split(5, ';', s.split(';'))
+            data = fix_split(5, ';', msg.split(';'))
         candidates = [Candidate((s_cd[0], int(s_cd[1])), False)
                       for s_cd in [s_cd.split(':')
                                    for s_cd in s_cd_list.split(',')]]
@@ -242,7 +232,8 @@ class TunnelSubprocess(RPCProcess, Subprocess):
 
     def on_incoming_from_tunnel(self, circuit, origin, data,
                                 anon_seed):
-        """Callback for when data should be delivered
+        """
+        Callback for when data should be delivered
 
         :param circuit: the originating circuits
         :type circuit: Tribler.community.tunnel.remotes.circuit.Circuit
@@ -260,11 +251,12 @@ class TunnelSubprocess(RPCProcess, Subprocess):
                                   "1" if anon_seed else "0",
                                   data]))
 
-    def on_exit(self, s):
-        """Callback for when the main process wants us to exit
+    def on_exit(self, msg):
+        """
+        Callback for when the main process wants us to exit
 
-        :param s: the exit flag
-        :type s: str
+        :param msg: the exit flag
+        :type msg: str
         :returns: None
         """
         @inlineCallbacks

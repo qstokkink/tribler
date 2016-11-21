@@ -279,30 +279,16 @@ class TriblerLaunchMany(TaskManager):
                                                        kargs=multichain_kwargs)
 
                         if self.session.get_tunnel_community_pooled():
-                            if self.session.get_tunnel_community_test_pooled():
-                                # Load the TestPooledTunnelCommunity community: should only be used when testing
-                                # the pooled HiddenTunnelCommunityMultichain
-                                from Tribler.community.tunnel.pooled_tunnel_community import TestPooledTunnelCommunity
-                                self.tunnel_community = self.dispersy.define_auto_load(
-                                    TestPooledTunnelCommunity, dispersy_member, load=True, kargs=tunnel_kwargs)[0]
-                            else:
-                                # Load the pooled HiddenTunnelCommunityMultichain
-                                from Tribler.community.tunnel.pooled_tunnel_community import PooledTunnelCommunity
-                                self.tunnel_community = self.dispersy.define_auto_load(
-                                    PooledTunnelCommunity, dispersy_member, load=True, kargs=tunnel_kwargs)[0]
+                            # Load the pooled HiddenTunnelCommunityMultichain
+                            from Tribler.community.tunnel.pooled_tunnel_community import PooledTunnelCommunity
+                            self.tunnel_community = self.dispersy.define_auto_load(
+                                PooledTunnelCommunity, dispersy_member, load=True, kargs=tunnel_kwargs)[0]
                         else:
-                            if self.session.get_tunnel_community_test_pooled():
-                                # Load the TestHiddenCommunity community: should only be used when testing
-                                # the pooled HiddenTunnelCommunityMultichain. This is for subprocesses.
-                                from Tribler.community.tunnel.pooled_tunnel_community import TestHiddenCommunity
-                                self.tunnel_community = self.dispersy.define_auto_load(
-                                    TestHiddenCommunity, dispersy_member, load=True, kargs=tunnel_kwargs)[0]
-                            else:
-                                # Load the normal HiddenTunnelCommunityMultichain
-                                from Tribler.community.tunnel.hidden_community_multichain \
-                                    import HiddenTunnelCommunityMultichain
-                                self.tunnel_community = self.dispersy.define_auto_load(
-                                    HiddenTunnelCommunityMultichain, dispersy_member, load=True, kargs=tunnel_kwargs)[0]
+                            # Load the normal HiddenTunnelCommunityMultichain
+                            from Tribler.community.tunnel.hidden_community_multichain \
+                                import HiddenTunnelCommunityMultichain
+                            self.tunnel_community = self.dispersy.define_auto_load(
+                                HiddenTunnelCommunityMultichain, dispersy_member, load=True, kargs=tunnel_kwargs)[0]
                     else:
                         keypair = self.dispersy.crypto.generate_key(u"curve25519")
                         dispersy_member = self.dispersy.get_member(private_key=self.dispersy.crypto.key_to_bin(keypair))

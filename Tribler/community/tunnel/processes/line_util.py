@@ -1,4 +1,5 @@
-"""Packaging utilities for speed and correctness.
+"""
+Packaging utilities for speed and correctness.
 
 To gain parsing speed, messages are delimited by newline characters.
 This allows for near-trivial message parsing.
@@ -12,7 +13,8 @@ import struct
 
 
 def pack_data(data):
-    """Generic data wrapper
+    """
+    Generic data wrapper
 
     Data is wrapped between the data length (8 bytes) and
     a newline.
@@ -27,7 +29,8 @@ def pack_data(data):
 
 
 def unpack_data(data):
-    """Generic data un-wrapper (see pack_data)
+    """
+    Generic data un-wrapper (see pack_data)
 
     Try to unpack data which was packed with pack_data.
     This returns the length data should have before a
@@ -47,7 +50,8 @@ def unpack_data(data):
 
 
 def unpack_complex(line):
-    """Ease-of-use decorator of unpack_data()
+    """
+    Ease-of-use decorator of unpack_data()
 
     See unpack_data(), returns the portion of the line
     to prepend following data with and the portion which
@@ -70,7 +74,8 @@ def unpack_complex(line):
 
 
 def fix_split(n, delimiter, args):
-    """Fix a string split into n partitions
+    """
+    Fix a string split into n partitions
 
     Raw data sent over a line may contain delimiters used internally.
     Given that the amount of delimiters is known per message type,
@@ -87,7 +92,7 @@ def fix_split(n, delimiter, args):
     """
     out = []
     if len(args) > n:
-        for i in range(n):
+        for i in xrange(n):
             out.append(args[i] if i < n-1
                        else delimiter.join(args[i:]))
         return out

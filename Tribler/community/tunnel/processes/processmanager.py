@@ -9,11 +9,13 @@ from Tribler.community.tunnel.processes.tunnel_childprocess import TunnelProcess
 
 class ProcessManager(object):
 
-    """The ProcessManager creates and manages ChildProcesses
+    """
+    The ProcessManager creates and manages ChildProcesses
     """
 
     def __init__(self, session, community=None):
-        """Create a new ProcessManager
+        """
+        Create a new ProcessManager
 
         :param session: the session to extract info from
         :type session: Tribler.Core.Session.Session
@@ -31,20 +33,22 @@ class ProcessManager(object):
         self._clean_working_dir()
 
     def _clean_working_dir(self):
-        """Clean leftover directories from crashed/terminated processes
+        """
+        Clean leftover directories from crashed/terminated processes
 
         :returns: None
         """
         for directory in [x[0] for x in os.walk(self.session.get_state_dir())]:
-            if os.path.split(directory)[1].startswith("SUBPROCESS"):
+            if os.path.split(directory)[1].startswith("tunnel_subprocess"):
                 logging.error("Cleaning up leftover subprocess artifacts in " + directory)
                 try:
                     shutil.rmtree(directory)
                 except OSError:
-                    pass
+                    logging.error("Failed to clean leftover subprocess directory " + directory)
 
     def get_suggested_workers(self):
-        """Have the process manager suggest a number of workers to use
+        """
+        Have the process manager suggest a number of workers to use
 
         :return: the suggested amount of workers
         :rtype: int
@@ -52,7 +56,8 @@ class ProcessManager(object):
         return cpu_count()
 
     def set_worker_count(self, value):
-        """Set the amount of workers to use
+        """
+        Set the amount of workers to use
 
         :param value: the new amount of workers
         :returns: None
@@ -60,46 +65,45 @@ class ProcessManager(object):
         count = self.get_worker_count()
         if count < value:
             # We have too little workers, create more
-            for _ in range(value - count):
+            for _ in xrange(value - count):
                 def on_worker(worker):
                     self.pool[worker.pid] = worker
-                self._create_worker(on_worker)
+                self._create_worker().addCallback(on_worker)
         elif count > value:
             # We have too many workers, remove some
             self._remove_workers(max(count - value, count))
 
     def get_worker_count(self):
-        """Return the active amount of workers
+        """
+        Return the active amount of workers
 
         :return: the current worker count
         :rtype: int
         """
         return len(self.pool.keys())
 
-    def _create_worker(self, callback):
-        """Create a single worker, without adding it to the pool
-
-        :param callback: the callback for when the worker is created
-        :type callback: func
-        :returns: None
+    def _create_worker(self):
         """
-        key_pair =\
-            self.session.get_multichain_permid_keypair_filename()
-        is_exit_node =\
-            self.session.get_tunnel_community_exitnode_enabled()
-        test_mode = self.session.get_tunnel_community_test_pooled()
+        Create a single worker, without adding it to the pool
 
-        process = TunnelProcess(
-            self.community if self.community
-            else self.session.lm.tunnel_community)
+        :return: the deferred for when the process has started
+        :rtype: twisted.internet.defer.Deferred
+        """
+        key_pair = self.session.get_multichain_permid_keypair_filename()
+        is_exit_node = self.session.get_tunnel_community_exitnode_enabled()
+
+        process = TunnelProcess(self.community if self.community
+                                else self.session.lm.tunnel_community)
 
         def on_created(proc):
-            callback(proc)
-            proc.create(key_pair, is_exit_node, test_mode)
+            proc.create(key_pair, is_exit_node)
         process.started.addCallback(on_created)
 
+        return process.started
+
     def _remove_workers(self, amount):
-        """Remove some amount of workers
+        """
+        Remove some amount of workers
 
         :param amount: the amount of workers to remove
         :type amount: int
@@ -114,7 +118,8 @@ class ProcessManager(object):
             if v in to_remove}
 
     def monitor_infohashes(self, infohashes):
-        """Call monitor_infohashes on all workers in the pool
+        """
+        Call monitor_infohashes on all workers in the pool
 
         :param infohashes: the infohashes the workers need to monitor
         :type infohashes: [(str, int, int)]
@@ -125,7 +130,8 @@ class ProcessManager(object):
 
     def send_data(self, candidates, circuit_id, dest_address,
                   source_address, data):
-        """Call send_data() on the worker assigned to circuit_id
+        """
+        Call send_data() on the worker assigned to circuit_id
 
         :param candidates: the candidates to use
         :type candidates: Tribler.dispersy.candidate.Candidate
@@ -158,7 +164,8 @@ class ProcessManager(object):
 
     def create_circuit(self, goal_hops, ctype, required_endpoint,
                        info_hash):
-        """Try to create a circuit on any worker which will accept it
+        """
+        Try to create a circuit on any worker which will accept it
 
         :param goal_hops: the hop count in the circuit
         :type goal_hops: int

@@ -1,4 +1,5 @@
-"""Each subprocess has 6 additional file descriptors
+"""
+Each subprocess has 6 additional file descriptors
 (next to the stdin, stdout and stderr). These are:
 
  - ctrl_in:  for receiving control messages
@@ -40,11 +41,13 @@ LOCK_EXIT = threading.Lock()
 
 class LineConsumer(threading.Thread):
 
-    """Daemon thread to consume file data.
+    """
+    Daemon thread to consume file data.
     """
 
     def __init__(self, file_obj, data_callback):
-        """Initialize a LineConsumer
+        """
+        Initialize a LineConsumer
 
         :param file_obj: The file object to read
         :type file_obj: file
@@ -60,7 +63,8 @@ class LineConsumer(threading.Thread):
         self.start()
 
     def run(self):
-        """Keep consuming from the line until it is closed
+        """
+        Keep consuming from the line until it is closed
 
         :returns: None
         """
@@ -78,13 +82,15 @@ class LineConsumer(threading.Thread):
 
 class Subprocess(IProcess):
 
-    """The main entry-point handle: a subprocess object.
-        Overwritten by the subprocess for more advanced
-        functionality.
+    """
+    The main entry-point handle: a subprocess object.
+    Overwritten by the subprocess for more advanced
+    functionality.
     """
 
     def __init__(self):
-        """Initialize a new Subprocess
+        """
+        Initialize a new Subprocess
 
         :returns: None
         """
@@ -93,7 +99,8 @@ class Subprocess(IProcess):
         self.closed = Deferred()
 
     def start(self):
-        """Start consuming from the input file descriptors
+        """
+        Start consuming from the input file descriptors
 
         :returns: None
         """
@@ -102,7 +109,8 @@ class Subprocess(IProcess):
         LineConsumer(FILE_EXIT_IN, self.on_exit)
 
     def write_ctrl(self, s):
-        """Write a control message to the parent process
+        """
+        Write a control message to the parent process
 
         :param s: the message to send
         :type s: str
@@ -111,7 +119,8 @@ class Subprocess(IProcess):
         Subprocess.write(FILE_CTRL_OUT, s, LOCK_CTRL)
 
     def write_data(self, s):
-        """Write raw data to the parent process
+        """
+        Write raw data to the parent process
 
         :param s: the message to send
         :type s: str
@@ -120,7 +129,8 @@ class Subprocess(IProcess):
         Subprocess.write(FILE_DATA_OUT, s, LOCK_DATA)
 
     def write_exit(self, s):
-        """Write an exit message to the parent process
+        """
+        Write an exit message to the parent process
 
         :param s: the message to send
         :type s: str
@@ -130,18 +140,20 @@ class Subprocess(IProcess):
 
     @staticmethod
     def close_all_streams():
-        """Close all registered file descriptors
+        """
+        Close all registered file descriptors
 
         :returns: None
         """
         # We use the fact that they are assigned
         # to the range [3, 8].
-        for fno in range(3, 9, 1):
+        for fno in xrange(3, 9, 1):
             Subprocess.close(fno)
 
     @staticmethod
     def write(f, data, lock):
-        """Write to the parent process
+        """
+        Write to the parent process
 
         :param f: the file to write to
         :type f: file
@@ -152,20 +164,19 @@ class Subprocess(IProcess):
         :returns: None
         """
         packed = pack_data(data)
-        def helper():
-            lock.acquire(True)
-            try:
-                f.write(packed)
-                f.flush()
-            except IOError:
-                pass
-            finally:
-                lock.release()
-        threading.Thread(target=helper).start()
+        lock.acquire(True)
+        try:
+            f.write(packed)
+            f.flush()
+        except IOError:
+            pass
+        finally:
+            lock.release()
 
     @staticmethod
     def close(fno):
-        """Close a file descriptor
+        """
+        Close a file descriptor
 
         :param fno: the file descriptor number
         :type fno: int
@@ -174,7 +185,8 @@ class Subprocess(IProcess):
         os.close(fno)
 
     def end(self):
-        """End the Subprocess
+        """
+        End the Subprocess
 
         Close all streams and call the closed callback
 
@@ -185,7 +197,8 @@ class Subprocess(IProcess):
 
     @inlineCallbacks
     def block_until_end(self):
-        """Wait until the Subprocess is closed
+        """
+        Wait until the Subprocess is closed
 
         :returns: None
         """

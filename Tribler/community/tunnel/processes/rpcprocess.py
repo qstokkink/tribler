@@ -9,7 +9,8 @@ from Tribler.community.tunnel.processes.iprocess import IProcess
 
 class RPCProcess(IProcess):
 
-    """Convenience class for sending RPC calls over the control stream.
+    """
+    Convenience class for sending RPC calls over the control stream.
 
     First register a callback on the receiving process:
         .register_rpc("MyCallback", callbackFunc)
@@ -24,12 +25,12 @@ class RPCProcess(IProcess):
 
     The return value is then returned to the initiator.
 
-    NOTE: callbackFunc is REQUIRED to share a response.
-          This is also needs to be a string.
+    NOTE: callbackFunc is REQUIRED to share a (str) response.
     """
 
     def __init__(self):
-        """Intialize a process capable of RPCs.
+        """
+        Intialize a process capable of RPCs.
 
         :returns: None
         """
@@ -41,8 +42,8 @@ class RPCProcess(IProcess):
         self.unique_id = 0L # Unique RPCID counter
 
     def register_rpc(self, name, callback=None, auto_serialize=True):
-        """Register a callback function for RPCs
-            with a certain name.
+        """
+        Register a callback function for RPCs with a certain name.
 
         :param name: the RPC name to register
         :type name: str
@@ -56,7 +57,8 @@ class RPCProcess(IProcess):
         self.auto_serialize[name] = auto_serialize
 
     def claim_id(self):
-        """Get a new unique id
+        """
+        Get a new unique id
 
         Note, this method is not thread-safe.
 
@@ -67,19 +69,20 @@ class RPCProcess(IProcess):
         self.unique_id = (self.unique_id + 1) % sys.maxint
         return str(nid)
 
-    def _extract_name_msgid_arg(self, s):
-        """Extract the RPC name, message id and argument from
+    def _extract_name_msgid_arg(self, raw):
+        """
+        Extract the RPC name, message id and argument from
         a serialized rpc message.
 
-        :param s: the serialized message
-        :type s: str
+        :param raw: the serialized message
+        :type raw: str
         :return: the name, message id and argument
         :rtype: (str, str or None, str or None)
         """
         for known in self.rpc_map.keys():
-            if s.startswith(known):
-                if len(s) > len(known):
-                    msgid_arg = s[len(known)+1:]
+            if raw.startswith(known):
+                if len(raw) > len(known):
+                    msgid_arg = raw[len(known)+1:]
                     comma_index = msgid_arg.find(',')
                     if (comma_index == -1 and
                             comma_index < len(msgid_arg)):
@@ -90,9 +93,9 @@ class RPCProcess(IProcess):
                                 msgid_arg[comma_index+1:])
                 else:
                     return known, None, None
-        return s, None, None
+        return raw, None, None
 
-    def on_ctrl(self, s):
+    def on_ctrl(self, msg):
         """Handle incoming ctrl stream strings
 
         These messages are comma delimited, arguments are optional.
@@ -101,11 +104,11 @@ class RPCProcess(IProcess):
         1. Respond to receive-only RPC calls
         2. Catch responses to send-only RPC calls (callback Deferred)
 
-        :param s: the serialized message
-        :type s: str
+        :param msg: the serialized message
+        :type msg: str
         :returns: None
         """
-        name, msg_id, arg = self._extract_name_msgid_arg(s)
+        name, msg_id, arg = self._extract_name_msgid_arg(msg)
         if arg and self.auto_serialize[name]:
             try:
                 arg = json.loads(arg)
@@ -115,7 +118,7 @@ class RPCProcess(IProcess):
                 return
         if name not in self.rpc_map:
             logging.error("Got illegal RPC: " +
-                          name + ", source = " + s)
+                          name + ", source = " + msg)
             return
 
         if self.rpc_map[name]:

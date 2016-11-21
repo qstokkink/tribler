@@ -1,4 +1,5 @@
-"""Definitions for RPC calls (see rpcprocess.py)
+"""
+Definitions for RPC calls (see rpcprocess.py)
 
 Response codes:
 * RPC_RESPONSE_OK: Report error-free execution

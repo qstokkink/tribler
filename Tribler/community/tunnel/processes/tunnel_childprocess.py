@@ -19,12 +19,14 @@ from Tribler.community.tunnel.remotes.remote_object import RemoteObject
 
 class TunnelProcess(RPCProcess, ChildProcess):
 
-    """The TunnelProcess is the main process's view of a child
+    """
+    The TunnelProcess is the main process's view of a child
     process running a TunnelCommunity.
     """
 
     def __init__(self, community=None):
-        """Initialize a new TunnelProcess. This is the main
+        """
+        Initialize a new TunnelProcess. This is the main
         process's view of a child process.
 
         :param community: the Community to report back to
@@ -45,7 +47,8 @@ class TunnelProcess(RPCProcess, ChildProcess):
         self.exit_deferred = None
 
     def set_community(self, community):
-        """ Switch the community to report to
+        """
+        Switch the community to report to
 
         :param community: the new community to use
         :type community: Tribler.dispersy.community.Community
@@ -53,7 +56,8 @@ class TunnelProcess(RPCProcess, ChildProcess):
         self.community = community
 
     def end(self):
-        """End the child process
+        """
+        End the child process
 
         :return: the deferred signalling the exit
         :rtype: twisted.internet.defer.Deferred
@@ -68,19 +72,21 @@ class TunnelProcess(RPCProcess, ChildProcess):
         reactor.callLater(10.0, checkExited)
         return self.exit_deferred
 
-    def on_exit(self, s):
-        """Callback for when the process signals correct termination
+    def on_exit(self, msg):
+        """
+        Callback for when the process signals correct termination
 
-        :param s: the exit flag
-        :type s: str
+        :param msg: the exit flag
+        :type msg: str
         :returns: None
         """
         if not self.exit_deferred.called:
             self.exit_deferred.callback(True)
 
     @inlineCallbacks
-    def create(self, keypair, is_exit_node, test_mode):
-        """Create the child process's community
+    def create(self, keypair, is_exit_node):
+        """
+        Create the child process's community
 
         :param keypair: the multichain key-pair to use
         :type keypair: str
@@ -90,13 +96,12 @@ class TunnelProcess(RPCProcess, ChildProcess):
         :type test_mode: bool
         :returns: None
         """
-        yield self.send_rpc(RPC_CREATE, (keypair,
-                                         is_exit_node,
-                                         test_mode))
+        yield self.send_rpc(RPC_CREATE, (keypair, is_exit_node))
 
     @inlineCallbacks
     def monitor_infohashes(self, infohashes):
-        """Call monitor_infohashes on the child process's community
+        """
+        Call monitor_infohashes on the child process's community
 
         :param infohashes: the infohash tuples to monitor
         :type infohashes: [(str, int, int)]
@@ -109,7 +114,8 @@ class TunnelProcess(RPCProcess, ChildProcess):
     @inlineCallbacks
     def create_circuit(self, goal_hops, ctype, required_endpoint,
                        info_hash):
-        """Call create_circuit on the child process's community
+        """
+        Call create_circuit on the child process's community
 
         :param goal_hops: the hop count in the circuit
         :type goal_hops: int
@@ -130,7 +136,8 @@ class TunnelProcess(RPCProcess, ChildProcess):
 
     def send_data(self, cd_list, circuit_id, dest_address,
                   source_address, data):
-        """Send data over a circuit_id
+        """
+        Send data over a circuit_id
 
         This uses custom serialization for speed.
 
@@ -156,24 +163,30 @@ class TunnelProcess(RPCProcess, ChildProcess):
                                   + str(source_address[1]),
                                   data]))
 
-    def on_data(self, s):
-        """Callback for incoming data
+    def on_data(self, msg):
+        """
+        Callback for incoming data
 
-        :param s: the serialized data
-        :type s: str
+        :param msg: the serialized data
+        :type msgs: str
         :returns: None
         """
         s_circuit_id, s_origin_host,\
             s_origin_port, s_anon_seed,\
-            data = fix_split(5, ';', s.split(';'))
-        circuit = self.community.circuits[int(s_circuit_id)]
+            data = fix_split(5, ';', msg.split(';'))
+        i_circuit_id = int(s_circuit_id)
+        if i_circuit_id not in self.community.circuits:
+            logging.error("Attempted to send data over unknown circuit id " + s_circuit_id)
+            return
+        circuit = self.community.circuits[i_circuit_id]
         origin = (s_origin_host, int(s_origin_port))
         anon_seed = s_anon_seed == "1"
         self.community.socks_server.on_incoming_from_tunnel(
             self.community, circuit, origin, data, anon_seed)
 
     def on_rpc_circuit_dead(self, circuit_id):
-        """Callback for when the child process signals a dead circuit
+        """
+        Callback for when the child process signals a dead circuit
 
         :param circuit_id: the dead circuit's id
         :type circuit_id: long
@@ -184,7 +197,8 @@ class TunnelProcess(RPCProcess, ChildProcess):
         return RPC_RESPONSE_OK
 
     def on_rpc_notify(self, subject, changeType, obj_id, *args):
-        """Callback for the child process's notifications
+        """
+        Callback for the child process's notifications
 
         :param subject: the subject
         :type subject: str
@@ -203,7 +217,8 @@ class TunnelProcess(RPCProcess, ChildProcess):
         return RPC_RESPONSE_OK
 
     def on_rpc_sync(self, serialized):
-        """RPC callback SyncDict synchronization frames
+        """
+        RPC callback SyncDict synchronization frames
 
         :param serialized: the sync frame
         :type serialized: str

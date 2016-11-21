@@ -3,7 +3,8 @@ from abc import ABCMeta, abstractmethod
 
 class IProcess(object):
 
-    """Generic process interface
+    """
+    Generic process interface
 
     Processes communicate using three data streams (next to std),
     namely:
@@ -22,61 +23,67 @@ class IProcess(object):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def on_ctrl(self, s):
-        """Callback for when a control message is received
+    def on_ctrl(self, msg):
+        """
+        Callback for when a control message is received
 
-        :param s: the received message
-        :type s: str
+        :param msg: the received message
+        :type msg: str
         :returns: None
         """
         pass
 
     @abstractmethod
-    def on_data(self, s):
-        """Callback for when raw data is received
+    def on_data(self, msg):
+        """
+        Callback for when raw data is received
 
-        :param s: the received message
-        :type s: str
+        :param msg: the received message
+        :type msg: str
         :returns: None
         """
         pass
 
     @abstractmethod
-    def on_exit(self, s):
-        """Callback for when an exit message is received
+    def on_exit(self, msg):
+        """
+        Callback for when an exit message is received
 
-        :param s: the received message
-        :type s: str
+        :param msg: the received message
+        :type msg: str
         :returns: None
         """
         pass
 
     @abstractmethod
-    def write_ctrl(self, s):
-        """Write a control message to the process
+    def write_ctrl(self, msg):
+        """
+        Write a control message to the process
 
-        :param s: the message to send
-        :type s: str
+        :param msg: the message to send
+        :type msg: str
         :returns: None
         """
         pass
 
     @abstractmethod
-    def write_data(self, s):
-        """Write raw data to the process
+    def write_data(self, msg):
+        """
+        Write raw data to the process
 
-        :param s: the data to send
-        :type s: str
+        :param msg: the data to send
+        :type msg: str
         :returns: None
         """
         pass
 
     @abstractmethod
-    def write_exit(self, s):
-        """Write an exit message to the process
+    def write_exit(self, msg):
+        """
+        Write an exit message to the process
 
-        :param s: the message to send
-        :type s: str
+        :param msg: the message to send
+        :type msg: str
         :returns: None
         """
         pass

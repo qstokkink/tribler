@@ -25,7 +25,8 @@ class MockProcess(RPCProcess):
         self.ctrl_written += s
 
     def clear_callbacks(self):
-        """Deal with the aftermath of calling send_rpc without a response
+        """
+        Deal with the aftermath of calling send_rpc without a response
         """
         for d in frozenset(self.wait_deferreds):
             self.wait_deferreds[d].callback("")
