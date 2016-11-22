@@ -194,6 +194,7 @@ class Subprocess(IProcess):
         """
         self.close_all_streams()
         self.closed.callback(True)
+        reactor.callFromThread(reactor.stop)
 
     @inlineCallbacks
     def block_until_end(self):

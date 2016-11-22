@@ -913,14 +913,6 @@ def run(params=[""], autoload_discovery=True, use_torrent_search=True, use_chann
         else:
             params = sys.argv[1:]
 
-    if "--tunnel_subprocess" in params:
-        from Tribler.community.tunnel.processes.tunnel_subprocess import TunnelSubprocess
-        subprocess = TunnelSubprocess()
-        subprocess.start()
-        from twisted.internet import threads
-        threads.blockingCallFromThread(reactor, subprocess.block_until_end)
-        return
-
     try:
         # Create single instance semaphore
         process_checker = ProcessChecker()

@@ -14,6 +14,7 @@ from Tribler.community.tunnel.remotes.hop import Hop
 from Tribler.community.tunnel.processes.processmanager import ProcessManager
 from Tribler.dispersy.community import Community
 from Tribler.dispersy.conversion import DefaultConversion
+from Tribler.dispersy.util import blocking_call_on_reactor_thread
 
 
 class PooledTunnelCommunity(Community):
@@ -88,6 +89,7 @@ class PooledTunnelCommunity(Community):
         self.register_task("do_circuits",
                            LoopingCall(self.do_circuits)).start(5, now=True)
 
+    @blocking_call_on_reactor_thread
     @inlineCallbacks
     def unload_community(self):
         """
@@ -95,8 +97,8 @@ class PooledTunnelCommunity(Community):
 
         :returns: None
         """
-        self.pool.set_worker_count(0)
-        super(PooledTunnelCommunity, self).unload_community()
+        yield self.pool.set_worker_count(0)
+        yield super(PooledTunnelCommunity, self).unload_community
         yield self.socks_server.stop()
 
     @classmethod

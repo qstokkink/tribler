@@ -140,7 +140,7 @@ class TestRemoteObject(unittest.TestCase):
         self.assertEqual(out_dirty.shared_normal, out_full.shared_normal)
 
     def test_unserialize_unknown(self):
-        known = { "test2": MockShared() }
+        known = {"test2": MockShared()}
         mock = MockShared()
         mock.shared_id = "test"
 

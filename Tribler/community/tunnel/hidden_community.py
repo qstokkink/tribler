@@ -560,16 +560,18 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
             # Since it is the seeder that chose the rendezvous_point, we're essentially losing 1 hop of anonymity
             # at the downloader end. To compensate we add an extra hop.
-            self.create_circuit(self.infohash_to_hop_dict[cache.info_hash] + 1,
-                                CIRCUIT_TYPE_RENDEZVOUS,
-                                callback=lambda circuit, cookie=rp_info[1], session_keys=session_keys,
-                                info_hash=cache.info_hash, sock_addr=cache.sock_addr: self.create_link_e2e(circuit,
-                                                                                                           cookie,
-                                                                                                           session_keys,
-                                                                                                           info_hash,
-                                                                                                           sock_addr),
-                                required_endpoint=rp_info[0],
-                                info_hash=cache.info_hash)
+            if cache.info_hash in self.infohash_to_hop_dict:
+                self.create_circuit(self.infohash_to_hop_dict[cache.info_hash] + 1,
+                                    CIRCUIT_TYPE_RENDEZVOUS,
+                                    callback=lambda circuit, cookie=rp_info[1], session_keys=session_keys,
+                                    info_hash=cache.info_hash,
+                                    sock_addr=cache.sock_addr: self.create_link_e2e(circuit,
+                                                                                    cookie,
+                                                                                    session_keys,
+                                                                                    info_hash,
+                                                                                    sock_addr),
+                                    required_endpoint=rp_info[0],
+                                    info_hash=cache.info_hash)
 
     def create_link_e2e(self, circuit, cookie, session_keys, info_hash, sock_addr):
         self.my_download_points[circuit.circuit_id] = (info_hash, circuit.goal_hops, sock_addr)

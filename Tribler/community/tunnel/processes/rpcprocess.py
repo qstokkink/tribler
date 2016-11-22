@@ -2,9 +2,10 @@ import json
 import logging
 import sys
 
-from twisted.internet.defer import Deferred, inlineCallbacks, returnValue
+from twisted.internet.defer import AlreadyCalledError, Deferred, inlineCallbacks, returnValue
 
 from Tribler.community.tunnel.processes.iprocess import IProcess
+from Tribler.dispersy.util import blocking_call_on_reactor_thread
 
 
 class RPCProcess(IProcess):
@@ -56,6 +57,7 @@ class RPCProcess(IProcess):
         self.rpc_map[name] = callback
         self.auto_serialize[name] = auto_serialize
 
+    @blocking_call_on_reactor_thread
     def claim_id(self):
         """
         Get a new unique id
@@ -132,11 +134,19 @@ class RPCProcess(IProcess):
                             (json.dumps(response)
                              if self.auto_serialize[name]
                              else response))
-        else:
+        elif msg_id in self.wait_deferreds:
             # This is a response to an RPC
-            self.wait_deferreds[msg_id].callback(arg)
+            try:
+                self.wait_deferreds[msg_id].callback(arg)
+            except AlreadyCalledError:
+                logging.error("Got a response for RPC " + str(msg_id) + ", which was already answered")
+            del self.wait_deferreds[msg_id]
+        else:
+            logging.error("Got illegal RPC response: " +
+                          name + ", source = " + msg + ", known = " +
+                          ", ".join(self.wait_deferreds.keys()))
+            return
 
-    @inlineCallbacks
     def _send_rpc(self, name, arg=None):
         """Send an RPC call to the other process
 
@@ -151,17 +161,13 @@ class RPCProcess(IProcess):
         :rtype: object or str
         """
         wait_id = self.claim_id()
-        self.wait_deferreds[wait_id] = Deferred()
+        waiter = Deferred()
+        self.wait_deferreds[wait_id] = waiter
 
         self.write_ctrl(name + "," + wait_id +
                         ("," + arg if arg else ""))
 
-        val = yield self.wait_deferreds[wait_id]
-        dpval = val[:]
-
-        del self.wait_deferreds[wait_id]
-
-        returnValue(dpval)
+        return waiter
 
     @inlineCallbacks
     def send_rpc(self, name, complex_obj=None):

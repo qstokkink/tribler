@@ -44,8 +44,8 @@ class TestLineUtil(unittest.TestCase):
         out = fix_split(2, delim, args)
 
         self.assertEqual(out, ["test", BINARY_STRING_ALL_CHARS
-                                       + delim
-                                       + BINARY_STRING_ALL_CHARS])
+                               + delim
+                               + BINARY_STRING_ALL_CHARS])
 
     def test_pack_data_empty(self):
         out = pack_data("")

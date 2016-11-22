@@ -50,10 +50,14 @@ class ChildProcess(ProcessProtocol, IProcess):
                 fixed_path = d
                 break
 
+        params = sys.argv + ["--tunnel_subprocess"]
+        if sys.argv[0].endswith("twistd"):
+            params = [params[0]] + ["--pidfile", ".pidfile", "--logfile", ".logfile"] + params[1:]
+
         reactor.spawnProcess(self,
                              sys.executable,
                              [sys.executable]
-                             + sys.argv + ["--tunnel_subprocess"],
+                             + params,
                              env=environ,
                              path=fixed_path,
                              childFDs={

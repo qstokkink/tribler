@@ -4,6 +4,8 @@ import shutil
 from multiprocessing import cpu_count
 from random import sample
 
+from twisted.internet.defer import DeferredList, inlineCallbacks, returnValue
+
 from Tribler.community.tunnel.processes.tunnel_childprocess import TunnelProcess
 
 
@@ -65,13 +67,10 @@ class ProcessManager(object):
         count = self.get_worker_count()
         if count < value:
             # We have too little workers, create more
-            for _ in xrange(value - count):
-                def on_worker(worker):
-                    self.pool[worker.pid] = worker
-                self._create_worker().addCallback(on_worker)
+            return [self._create_worker() for _ in xrange(value - count)]
         elif count > value:
             # We have too many workers, remove some
-            self._remove_workers(max(count - value, count))
+            return self._remove_workers(max(count - value, count))
 
     def get_worker_count(self):
         """
@@ -84,7 +83,7 @@ class ProcessManager(object):
 
     def _create_worker(self):
         """
-        Create a single worker, without adding it to the pool
+        Create a single worker and add it to the pool
 
         :return: the deferred for when the process has started
         :rtype: twisted.internet.defer.Deferred
@@ -96,6 +95,7 @@ class ProcessManager(object):
                                 else self.session.lm.tunnel_community)
 
         def on_created(proc):
+            self.pool[proc.pid] = proc
             proc.create(key_pair, is_exit_node)
         process.started.addCallback(on_created)
 
@@ -110,12 +110,14 @@ class ProcessManager(object):
         :returns: None
         """
         to_remove = sample(self.pool.keys(), amount)
+        waiters = []
         for worker in to_remove:
-            self.pool[worker].end()
+            waiters.append(self.pool[worker].end())
             self.pool.pop(worker)
         self.circuit_map = {
             k:v for k, v in self.circuit_map.iteritems()
             if v in to_remove}
+        return DeferredList(waiters)
 
     def monitor_infohashes(self, infohashes):
         """
@@ -146,7 +148,12 @@ class ProcessManager(object):
         :returns: None
         """
         if circuit_id in self.circuit_map:
-            worker = self.pool[self.circuit_map[circuit_id]]
+            worker_id = self.circuit_map[circuit_id]
+            if worker_id not in self.pool:
+                logging.error("Could not find worker with pid " + str(worker_id)
+                              + " (probably shutting down)")
+                return
+            worker = self.pool[worker_id]
             worker.send_data([cd.sock_addr for cd in candidates],
                              circuit_id,
                              dest_address,
@@ -162,6 +169,7 @@ class ProcessManager(object):
                                  source_address,
                                  data)
 
+    @inlineCallbacks
     def create_circuit(self, goal_hops, ctype, required_endpoint,
                        info_hash):
         """
@@ -182,12 +190,12 @@ class ProcessManager(object):
         for worker in sorted(self.pool,
                              key=lambda x: (
                                  self.circuit_map.values().count(x))):
-            circuit_id = \
-                self.pool[worker].create_circuit(goal_hops,
-                                                 ctype,
-                                                 required_endpoint,
-                                                 info_hash)
+            circuit_id = yield self.pool[worker].create_circuit(goal_hops,
+                                                                ctype,
+                                                                required_endpoint,
+                                                                info_hash)
+
             if circuit_id:
                 self.circuit_map[circuit_id] = worker
                 break
-        return circuit_id
+        returnValue(circuit_id)

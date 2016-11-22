@@ -261,7 +261,7 @@ class TunnelSubprocess(RPCProcess, Subprocess):
         """
         @inlineCallbacks
         def session_shutdown():
-            yield self.session.shutdown(checkpoint=False)
+            yield self.session.shutdown()
 
         if self.session:
             session_shutdown()
