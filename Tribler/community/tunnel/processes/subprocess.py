@@ -11,12 +11,15 @@ Each subprocess has 6 additional file descriptors
 """
 
 import io
+import logging
 import os
+import sys
 import threading
 
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
 
+from Tribler.community.tunnel.processes import CHILDFDS_ENABLED
 from Tribler.community.tunnel.processes.iprocess import IProcess
 from Tribler.community.tunnel.processes.line_util import pack_data, unpack_complex
 
@@ -27,16 +30,20 @@ FNO_DATA_OUT = 6
 FNO_EXIT_IN = 7
 FNO_EXIT_OUT = 8
 
-FILE_CTRL_IN = io.open(FNO_CTRL_IN, "rb", 0)
-FILE_CTRL_OUT = io.open(FNO_CTRL_OUT, "wb", 0)
-FILE_DATA_IN = io.open(FNO_DATA_IN, "rb", 0)
-FILE_DATA_OUT = io.open(FNO_DATA_OUT, "wb", 0)
-FILE_EXIT_IN = io.open(FNO_EXIT_IN, "rb", 0)
-FILE_EXIT_OUT = io.open(FNO_EXIT_OUT, "wb", 0)
+FILE_CTRL_IN = io.open(FNO_CTRL_IN, "rb", 0) if CHILDFDS_ENABLED else sys.__stdin__
+FILE_CTRL_OUT = io.open(FNO_CTRL_OUT, "wb", 0) if CHILDFDS_ENABLED else sys.__stdout__
+FILE_DATA_IN = io.open(FNO_DATA_IN, "rb", 0) if CHILDFDS_ENABLED else sys.__stdin__
+FILE_DATA_OUT = io.open(FNO_DATA_OUT, "wb", 0) if CHILDFDS_ENABLED else sys.__stdout__
+FILE_EXIT_IN = io.open(FNO_EXIT_IN, "rb", 0) if CHILDFDS_ENABLED else sys.__stdin__
+FILE_EXIT_OUT = io.open(FNO_EXIT_OUT, "wb", 0) if CHILDFDS_ENABLED else sys.__stdout__
 
-LOCK_CTRL = threading.Lock()
-LOCK_DATA = threading.Lock()
-LOCK_EXIT = threading.Lock()
+if not CHILDFDS_ENABLED:
+    sys.stdout = sys.__stderr__
+
+LOCK_GENERIC = None if CHILDFDS_ENABLED else threading.Lock()
+LOCK_CTRL = threading.Lock() if CHILDFDS_ENABLED else LOCK_GENERIC
+LOCK_DATA = threading.Lock() if CHILDFDS_ENABLED else LOCK_GENERIC
+LOCK_EXIT = threading.Lock() if CHILDFDS_ENABLED else LOCK_GENERIC
 
 
 class LineConsumer(threading.Thread):
@@ -104,39 +111,66 @@ class Subprocess(IProcess):
 
         :returns: None
         """
-        LineConsumer(FILE_CTRL_IN, self.on_ctrl)
-        LineConsumer(FILE_DATA_IN, self.on_data)
-        LineConsumer(FILE_EXIT_IN, self.on_exit)
+        if CHILDFDS_ENABLED:
+            LineConsumer(FILE_CTRL_IN, self.on_ctrl)
+            LineConsumer(FILE_DATA_IN, self.on_data)
+            LineConsumer(FILE_EXIT_IN, self.on_exit)
+        else:
+            LineConsumer(sys.__stdin__, self.on_generic)
 
-    def write_ctrl(self, s):
+    def on_generic(self, msg):
+        """
+        Callback for when a multiplexed message is sent over
+        a stream. These have their intended stream identifier
+        as the first character.
+
+        :param msg: the received message
+        :type msg: str
+        :returns: None
+        """
+        data = msg[1:]
+        try:
+            stream = int(msg[0])
+            if stream == FNO_CTRL_IN:
+                self.on_ctrl(data)
+            elif stream == FNO_DATA_IN:
+                self.on_data(data)
+            elif stream == FNO_EXIT_IN:
+                self.on_exit(data)
+            else:
+                logging.error("Got data for unknown file descriptor " + msg[0])
+        except ValueError:
+            logging.error("Got data for unknown file descriptor " + msg[0])
+
+    def write_ctrl(self, msg):
         """
         Write a control message to the parent process
 
-        :param s: the message to send
-        :type s: str
+        :param msg: the message to send
+        :type msg: str
         :returns: None
         """
-        Subprocess.write(FILE_CTRL_OUT, s, LOCK_CTRL)
+        Subprocess.write(FILE_CTRL_OUT, FNO_CTRL_OUT, msg, LOCK_CTRL)
 
-    def write_data(self, s):
+    def write_data(self, msg):
         """
         Write raw data to the parent process
 
-        :param s: the message to send
-        :type s: str
+        :param msg: the message to send
+        :type msg: str
         :returns: None
         """
-        Subprocess.write(FILE_DATA_OUT, s, LOCK_DATA)
+        Subprocess.write(FILE_DATA_OUT, FNO_DATA_OUT, msg, LOCK_DATA)
 
-    def write_exit(self, s):
+    def write_exit(self, msg):
         """
         Write an exit message to the parent process
 
-        :param s: the message to send
-        :type s: str
+        :param msg: the message to send
+        :type msg: str
         :returns: None
         """
-        Subprocess.write(FILE_EXIT_OUT, s, LOCK_EXIT)
+        Subprocess.write(FILE_EXIT_OUT, FNO_EXIT_OUT, msg, LOCK_EXIT)
 
     @staticmethod
     def close_all_streams():
@@ -147,11 +181,12 @@ class Subprocess(IProcess):
         """
         # We use the fact that they are assigned
         # to the range [3, 8].
-        for fno in xrange(3, 9, 1):
-            Subprocess.close(fno)
+        if CHILDFDS_ENABLED:
+            for fno in xrange(3, 9, 1):
+                Subprocess.close(fno)
 
     @staticmethod
-    def write(f, data, lock):
+    def write(f, fno, data, lock):
         """
         Write to the parent process
 
@@ -163,7 +198,8 @@ class Subprocess(IProcess):
         :type lock: threading.Lock
         :returns: None
         """
-        packed = pack_data(data)
+        prefix = "" if CHILDFDS_ENABLED else str(fno)
+        packed = pack_data(prefix + data)
         lock.acquire(True)
         try:
             f.write(packed)

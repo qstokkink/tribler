@@ -1,15 +1,25 @@
 import logging
 import sys
-from os import environ
+from os import environ, kill
 from os.path import isfile, join
 
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred
-from twisted.internet.error import ProcessExitedAlready
 from twisted.internet.protocol import ProcessProtocol
 
+from Tribler.community.tunnel.processes import CHILDFDS_ENABLED
 from Tribler.community.tunnel.processes.iprocess import IProcess
 from Tribler.community.tunnel.processes.line_util import pack_data, unpack_complex
+
+CUSTOM_FDS = {0: 0,  # std in
+              1: 1,  # std out
+              2: 2,  # std err
+              3: "w",  # ctrl in
+              4: "r",  # ctrl out
+              5: "w",  # data in
+              6: "r",  # data out
+              7: "w",  # exit in
+              8: "r"}  # exit out
 
 
 class ChildProcess(ProcessProtocol, IProcess):
@@ -38,68 +48,118 @@ class ChildProcess(ProcessProtocol, IProcess):
         super(ChildProcess, self).__init__()
 
         # Raw input buffers
-        self.databuffers = {4: "", 6: "", 8: ""}
+        self.databuffers = {1: "", 2: "", 4: "", 6: "", 8: ""}
+        # Input callbacks
+        self.input_callbacks = {1: self.on_generic,
+                                2: self.on_stderr,
+                                4: self.on_ctrl,
+                                6: self.on_data,
+                                8: self.on_exit}
+
         # Process is responsive
         self.started = Deferred()
         # One or more of the file descriptors closed unexpectedly
         self.broken = False
 
+        # sys.path may include more than the executable path
         fixed_path = None
         for d in sys.path:
             if isfile(join(d, sys.argv[0])):
                 fixed_path = d
                 break
 
+        # twistd can't deal with multiple instances
+        # supplying unused pid and logfiles to facilitate this
         params = sys.argv + ["--tunnel_subprocess"]
         if sys.argv[0].endswith("twistd"):
             params = [params[0]] + ["--pidfile", ".pidfile", "--logfile", ".logfile"] + params[1:]
 
-        reactor.spawnProcess(self,
-                             sys.executable,
-                             [sys.executable]
-                             + params,
-                             env=environ,
-                             path=fixed_path,
-                             childFDs={
-                                 0: 0,   # std in
-                                 1: 1,   # std out
-                                 2: 2,   # std err
-                                 3: "w", # ctrl in
-                                 4: "r", # ctrl out
-                                 5: "w", # data in
-                                 6: "r", # data out
-                                 7: "w", # exit in
-                                 8: "r"})# exit out
+        # Spawn the actual process
+        self._spawn_process(sys.executable, params, fixed_path, CUSTOM_FDS if CHILDFDS_ENABLED else None)
 
-    def write_ctrl(self, s):
+    def _spawn_process(self, executable, params, path, fds):
+        """
+        Spawn a process
+
+        :param executable: the executable to spawn
+        :type executable: str
+        :param params: the command line parameters to use
+        :type params: [str]
+        :param path: the PATH to use for execution
+        :type path: str
+        :param fds: the file descriptors to use
+        :type fds: {int: str or int} or None
+        :returns: None
+        """
+        if fds:
+            reactor.spawnProcess(self,
+                                 executable,
+                                 [executable]
+                                 + params,
+                                 env=environ,
+                                 path=path,
+                                 childFDs=fds)
+        else:
+            reactor.spawnProcess(self,
+                                 executable,
+                                 [executable]
+                                 + params,
+                                 env=environ,
+                                 path=path)
+
+    def on_generic(self, msg):
+        """
+        Callback for when a multiplexed message is sent over
+        a stream. These have their intended stream identifier
+        as the first character.
+
+        :param msg: the received message
+        :type msg: str
+        :returns: None
+        """
+        data = msg[1:]
+        stream = int(msg[0])
+        self.input_callbacks[stream](data)
+
+    def on_stderr(self, msg):
+        """
+        Callback for when the child process writes to stderr
+
+        :param msg: the message to write
+        :type msg: str
+        :returns: None
+        """
+        print >> sys.stderr, "[CHILDPROCESS]", msg
+
+    def write_ctrl(self, msg):
         """
         Write a control message to the process
 
-        :param s: the message to send
-        :type s: str
+        :param msg: the message to send
+        :type msg: str
         :returns: None
         """
-        reactor.callFromThread(self.raw_write, 3, s)
+        reactor.callFromThread(self.raw_write, 3, msg)
 
-    def write_data(self, s):
+    def write_data(self, msg):
         """
         Write raw data to the process
 
-        :param s: the message to send
-        :type s: str
+        :param msg: the message to send
+        :type msg: str
         :returns: None
         """
-        reactor.callFromThread(self.raw_write, 5, s)
+        reactor.callFromThread(self.raw_write, 5, msg)
 
-    def write_exit(self, s):
+    def write_exit(self, msg):
         """
         Write an exit message to the process
 
-        :param s: the message to send
-        :type s: str
+        :param msg: the message to send
+        :type msg: str
         :returns: None
         """
-        reactor.callFromThread(self.raw_write, 7, s)
+        reactor.callFromThread(self.raw_write, 7, msg)
 
     def raw_write(self, fd, data):
         """
@@ -111,11 +171,10 @@ class ChildProcess(ProcessProtocol, IProcess):
         :type data: str
         :returns: None
         """
-        if fd not in self.transport.pipes:
-            logging.error("Dropping message for FD " + str(fd)
-                          + ", pipe is closed")
-        else:
-            self.transport.writeToChild(fd, pack_data(data))
+        prefix = "" if CHILDFDS_ENABLED else str(fd)
+        self.transport.writeToChild(fd if CHILDFDS_ENABLED else 0, pack_data(prefix + data))
+        self.transport.pauseProducing()
+        self.transport.resumeProducing()
 
     def connectionMade(self):
         """
@@ -139,26 +198,12 @@ class ChildProcess(ProcessProtocol, IProcess):
         """
         partitions = data.split('\n')
         for partition in partitions[:-1]:
-            concat_data = self.databuffers.get(childFD, "")\
-                          + partition + '\n'
+            concat_data = self.databuffers.get(childFD, "") + partition + '\n'
             cc_data, out = unpack_complex(concat_data)
             self.databuffers[childFD] = cc_data
             if out is not None:
-                if childFD == 4:
-                    # ctrl out
-                    reactor.callInThread(self.on_ctrl, out)
-                    self.databuffers[childFD] = ""
-                elif childFD == 6:
-                    # data out
-                    reactor.callInThread(self.on_data, out)
-                    self.databuffers[childFD] = ""
-                elif childFD == 8:
-                    # exit out
-                    reactor.callInThread(self.on_exit, out)
-                    self.databuffers[childFD] = ""
-                else:
-                    logging.error("Got data on unknown FD "
-                                  + str(childFD))
+                reactor.callInThread(self.input_callbacks[childFD], out)
+                self.databuffers[childFD] = ""
         self.databuffers[childFD] += partitions[-1]
 
     def childConnectionLost(self, childFD):
@@ -194,7 +239,4 @@ class ChildProcess(ProcessProtocol, IProcess):
 
         :returns: None
         """
-        try:
-            self.transport.signalProcess('KILL')
-        except ProcessExitedAlready:
-            pass
+        kill(self.pid, 9)

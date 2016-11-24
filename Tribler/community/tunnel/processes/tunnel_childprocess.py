@@ -69,7 +69,7 @@ class TunnelProcess(RPCProcess, ChildProcess):
                 logging.error("Force killing " + str(self.pid))
                 self.terminate()
                 self.exit_deferred.callback(True)
-        reactor.callLater(10.0, checkExited)
+        reactor.callLater(4.0, checkExited)
         return self.exit_deferred
 
     def on_exit(self, msg):
