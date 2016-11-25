@@ -150,7 +150,7 @@ class ProcessManager(object):
         if circuit_id in self.circuit_map:
             worker_id = self.circuit_map[circuit_id]
             if worker_id not in self.pool:
-                logging.error("Could not find worker with pid " + str(worker_id)
+                logging.warning("Could not find worker with pid " + str(worker_id)
                               + " (probably shutting down)")
                 return
             worker = self.pool[worker_id]
@@ -190,6 +190,10 @@ class ProcessManager(object):
         for worker in sorted(self.pool,
                              key=lambda x: (
                                  self.circuit_map.values().count(x))):
+            if worker not in self.pool:
+                logging.warning("Could not find worker with pid " + str(worker)
+                              + " (probably shutting down)")
+                continue
             circuit_id = yield self.pool[worker].create_circuit(goal_hops,
                                                                 ctype,
                                                                 required_endpoint,
