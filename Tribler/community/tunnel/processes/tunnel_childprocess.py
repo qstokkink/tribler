@@ -1,5 +1,6 @@
 import logging
 from binascii import hexlify
+from time import sleep
 
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, inlineCallbacks, returnValue
@@ -81,6 +82,11 @@ class TunnelProcess(RPCProcess, ChildProcess):
         :returns: None
         """
         if not self.exit_deferred.called:
+            # The child has assured us it has exited correctly
+            # If it lied to us, the checkExited() callback will
+            # force terminate it anyway.
+            while not self.broken:
+                sleep(0.05)
             self.exit_deferred.callback(True)
 
     @inlineCallbacks
