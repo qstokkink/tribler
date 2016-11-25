@@ -220,7 +220,9 @@ class ChildProcess(ProcessProtocol, IProcess):
         logging.info("[" + str(self.pid)
                      + "] Connection lost with child FD "
                      + str(childFD))
-        self.transport.closeChildFD(childFD)
+        # We are not allowed to close the std streams
+        if childFD > 2:
+            self.transport.closeChildFD(childFD)
 
     def processEnded(self, status):
         """
@@ -230,8 +232,10 @@ class ChildProcess(ProcessProtocol, IProcess):
         :type status: twisted.python.failure.Failure
         :returns: None
         """
-        for i in xrange(9):
-            self.transport.closeChildFD(i)
+        if CHILDFDS_ENABLED:
+            # We are not allowed to close the std streams
+            for i in xrange(3, 9):
+                self.transport.closeChildFD(i)
 
     def terminate(self):
         """

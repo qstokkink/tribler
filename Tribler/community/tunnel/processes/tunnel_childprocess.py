@@ -3,7 +3,7 @@ from binascii import hexlify
 from time import sleep
 
 from twisted.internet import reactor
-from twisted.internet.defer import Deferred, inlineCallbacks, returnValue
+from twisted.internet.defer import AlreadyCalledError, Deferred, inlineCallbacks, returnValue
 
 from Tribler.community.tunnel.processes.childprocess import ChildProcess
 from Tribler.community.tunnel.processes.line_util import fix_split
@@ -69,7 +69,7 @@ class TunnelProcess(RPCProcess, ChildProcess):
             if not self.exit_deferred.called:
                 logging.error("Force killing " + str(self.pid))
                 self.terminate()
-                self.exit_deferred.callback(True)
+                self._signal_exit_deferred()
         reactor.callLater(4.0, checkExited)
         return self.exit_deferred
 
@@ -87,7 +87,19 @@ class TunnelProcess(RPCProcess, ChildProcess):
             # force terminate it anyway.
             while not self.broken:
                 sleep(0.05)
+            self._signal_exit_deferred()
+
+    def _signal_exit_deferred(self):
+        """
+        Make sure the exit_deferred has been called
+
+        :returns: None
+        """
+        try:
             self.exit_deferred.callback(True)
+        except AlreadyCalledError:
+            # This is fine, our job is done
+            pass
 
     @inlineCallbacks
     def create(self, keypair, is_exit_node):
