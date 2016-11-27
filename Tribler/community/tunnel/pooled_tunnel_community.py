@@ -242,7 +242,7 @@ class PooledTunnelCommunity(Community):
             for peer in peers:
                 self.tunnel_logger.info("Re-adding peer %s to torrent %s", peer, infohash)
                 torrent.add_peer(peer)
-            if torrent in self.bittorrent_peers:
+            if not self.trsession.has_download(infohash):
                 del self.bittorrent_peers[torrent]
 
     def remove_circuit(self, circuit_id):
