@@ -89,6 +89,7 @@ class TunnelSubprocess(RPCProcess, Subprocess):
         self.community.set_process(self)
         self.session_started = True
 
+    @inlineCallbacks
     def start_session(self, session):
         """
         Attempt to start the local Session
@@ -99,8 +100,7 @@ class TunnelSubprocess(RPCProcess, Subprocess):
                              NTFY_TRIBLER,
                              [NTFY_STARTED])
         try:
-            session.prestart()
-            session.start()
+            yield session.start()
         except:
             logging.error("Session reported error when starting up: "
                           + str(sys.exc_info()[0]))

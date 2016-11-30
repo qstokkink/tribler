@@ -238,9 +238,9 @@ class PooledTunnelCommunity(Community):
         TODO: This is duplicate code, refactor to shared abstract class
         """
         for torrent, peers in self.bittorrent_peers.items():
-            infohash = torrent.tdef.get_infohash().encode("hex")
+            infohash = torrent.tdef.get_infohash()
             for peer in peers:
-                self.tunnel_logger.info("Re-adding peer %s to torrent %s", peer, infohash)
+                self.tunnel_logger.info("Re-adding peer %s to torrent %s", peer, infohash.encode("hex"))
                 torrent.add_peer(peer)
             if not self.trsession.has_download(infohash):
                 del self.bittorrent_peers[torrent]
@@ -260,7 +260,8 @@ class PooledTunnelCommunity(Community):
                                      for d, s in ltmgr.torrents.values() if s == ltmgr.get_session(d.get_hops())}
 
                 for download, peers in affected_torrents.iteritems():
-                    if peers:
+                    infohash = download.tdef.get_infohash()
+                    if peers and self.trsession.has_download(infohash):
                         if download not in self.bittorrent_peers:
                             self.bittorrent_peers[download] = peers
                         else:
