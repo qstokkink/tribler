@@ -200,6 +200,11 @@ class ChildProcess(ProcessProtocol, IProcess):
         for partition in partitions[:-1]:
             concat_data = self.databuffers.get(childFD, "") + partition + '\n'
             cc_data, out = unpack_complex(concat_data)
+            if childFD == 2:
+                # Directly forward stderr to our stderr
+                # Get rid of our added newline
+                out = cc_data[:-1]
+                cc_data = None
             self.databuffers[childFD] = cc_data
             if out is not None:
                 reactor.callInThread(self.input_callbacks[childFD], out)
