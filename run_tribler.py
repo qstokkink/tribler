@@ -1,11 +1,12 @@
+import logging.config
+import multiprocessing
 import os
 import sys
-import multiprocessing
 
 from Tribler.community.tunnel.subprocess_launcher import SubprocessLauncher
 
-import logging.config
-logging.config.fileConfig("logger.conf")
+if os.path.exists("logger.conf"):
+    logging.config.fileConfig("logger.conf")
 
 if __name__ == "__main__":
     options = SubprocessLauncher()
