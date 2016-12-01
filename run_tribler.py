@@ -4,6 +4,9 @@ import multiprocessing
 
 from Tribler.community.tunnel.subprocess_launcher import SubprocessLauncher
 
+import logging.config
+logging.config.fileConfig("logger.conf")
+
 if __name__ == "__main__":
     options = SubprocessLauncher()
     options.parse_argv()
