@@ -663,7 +663,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
                                              CIRCUIT_TYPE_IP,
                                              callback,
                                              info_hash=info_hash)
-            self.infohash_ip_circuits[info_hash].append((circuit_id, time.time()))
+            if circuit_id:
+                self.infohash_ip_circuits[info_hash].append((circuit_id, time.time()))
 
     def check_establish_intro(self, messages):
         for message in messages:
