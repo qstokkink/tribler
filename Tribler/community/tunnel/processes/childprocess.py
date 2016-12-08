@@ -173,8 +173,6 @@ class ChildProcess(ProcessProtocol, IProcess):
         """
         prefix = "" if CHILDFDS_ENABLED else str(fd)
         self.transport.writeToChild(fd if CHILDFDS_ENABLED else 0, pack_data(prefix + data))
-        self.transport.pauseProducing()
-        self.transport.resumeProducing()
 
     def connectionMade(self):
         """
@@ -196,15 +194,13 @@ class ChildProcess(ProcessProtocol, IProcess):
         :type data: str
         :returns: None
         """
+        if childFD == 2:
+            self.input_callbacks[childFD](data[:-1])
+            return
         partitions = data.split('\n')
         for partition in partitions[:-1]:
             concat_data = self.databuffers.get(childFD, "") + partition + '\n'
             cc_data, out = unpack_complex(concat_data)
-            if childFD == 2:
-                # Directly forward stderr to our stderr
-                # Get rid of our added newline
-                out = cc_data[:-1]
-                cc_data = None
             self.databuffers[childFD] = cc_data
             if out is not None:
                 reactor.callInThread(self.input_callbacks[childFD], out)

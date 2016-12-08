@@ -38,7 +38,19 @@ FILE_EXIT_IN = io.open(FNO_EXIT_IN, "rb", 0) if CHILDFDS_ENABLED else sys.__stdi
 FILE_EXIT_OUT = io.open(FNO_EXIT_OUT, "wb", 0) if CHILDFDS_ENABLED else sys.__stdout__
 
 if not CHILDFDS_ENABLED:
-    sys.stdout = sys.__stderr__
+    # The default stderr is way too slow flushing
+    # its buffer. This causes congestion and slow down.
+    class AutoFlushErrWriter(object):
+
+        def write(_, s):
+            sys.__stderr__.write(s)
+            sys.__stderr__.flush()
+
+        def __getattr__(_, item):
+            return getattr(sys.__stderr__, item)
+
+    sys.stderr = AutoFlushErrWriter()
+    sys.stdout = sys.stderr
 
 LOCK_GENERIC = None if CHILDFDS_ENABLED else threading.Lock()
 LOCK_CTRL = threading.Lock() if CHILDFDS_ENABLED else LOCK_GENERIC
