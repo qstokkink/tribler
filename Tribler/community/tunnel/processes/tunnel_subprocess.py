@@ -198,12 +198,17 @@ class TunnelSubprocess(RPCProcess, Subprocess):
         if not self.session_started:
             logging.error("Attempted create_circuit without Session")
             return False
+        dec_required_endpoint = None
+        if required_endpoint:
+            dec_required_endpoint = (required_endpoint[0],
+                                     required_endpoint[1],
+                                     required_endpoint[2].decode("HEX"))
         return blockingCallFromThread(reactor,
                                       self.community.create_circuit,
                                       goal_hops,
                                       ctype,
                                       None,
-                                      required_endpoint,
+                                      dec_required_endpoint,
                                       info_hash)
 
     def on_data(self, msg):

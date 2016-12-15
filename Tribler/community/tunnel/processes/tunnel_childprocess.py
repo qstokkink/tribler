@@ -146,9 +146,14 @@ class TunnelProcess(RPCProcess, ChildProcess):
         :return: False or the circuit id
         :rtype: bool or long
         """
+        enc_required_endpoint = None
+        if required_endpoint:
+            enc_required_endpoint = (required_endpoint[0],
+                                     required_endpoint[1],
+                                     required_endpoint[2].encode("HEX"))
         val = yield self.send_rpc(RPC_CIRCUIT, (goal_hops,
                                                 ctype,
-                                                required_endpoint,
+                                                enc_required_endpoint,
                                                 info_hash))
         returnValue(val)
 
