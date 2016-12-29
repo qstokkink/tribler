@@ -77,11 +77,12 @@ class PooledTunnelCommunity(Community):
 
         if self.trsession:
             self.notifier = self.trsession.notifier
+            self.trsession.lm.tunnel_community = self
 
         # Multiply the single TunnelSettings by the amount of
         # workers we can handle.
         self.pool = ProcessManager(tribler_session, self)
-        suggested_workers = self.pool.get_suggested_workers()
+        suggested_workers = self.settings.workers if self.settings.workers > 0 else self.pool.get_suggested_workers()
         self.pool.set_worker_count(suggested_workers)
         self.settings.min_circuits *= suggested_workers
         self.settings.max_circuits *= suggested_workers

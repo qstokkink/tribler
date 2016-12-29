@@ -223,6 +223,8 @@ class TunnelSettings(object):
         self.max_circuits = 8
         self.max_relays_or_exits = 100
 
+        self.workers = -1
+
         self.max_time = 10 * 60
         self.max_time_inactive = 20
         self.max_traffic = 250 * 1024 * 1024

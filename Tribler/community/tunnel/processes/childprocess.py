@@ -73,6 +73,8 @@ class ChildProcess(ProcessProtocol, IProcess):
         params = sys.argv + ["--tunnel_subprocess"]
         if sys.argv[0].endswith("twistd"):
             params = [params[0]] + ["--pidfile", ".pidfile", "--logfile", ".logfile"] + params[1:]
+        elif sys.argv[0].endswith("tunnel_pooled.py"):
+            params[0] = join(params[0][:params[0].rfind('/')], "../../../tribler/run_tribler.py")
 
         # Spawn the actual process
         self._spawn_process(sys.executable, params, fixed_path, CUSTOM_FDS if CHILDFDS_ENABLED else None)
