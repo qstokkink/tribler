@@ -27,7 +27,7 @@ class UserActivityManager:
         """
         super().__init__()
 
-        self.infohash_to_queries: dict[InfoHash, list[str]] = defaultdict(list)
+        self.infohash_to_queries: dict[InfoHash, list[tuple[str, int | None, int | None]]] = defaultdict(list)
         self.queries: OrderedDict[str, typing.Set[InfoHash]] = OrderedDict()
         self.max_query_history = max_query_history
         self.database_manager: UserActivityLayer = session.db.user_activity
@@ -46,15 +46,16 @@ class UserActivityManager:
         Start tracking a query and its results.
         If any of the results get downloaded, we store the query (see ``on_torrent_finished``).
         """
-        results = {tmd["infohash"] for tmd in data["results"]}
-        for infohash in results:
-            self.infohash_to_queries[infohash].append(query)
+        results = set()
+        for tmd in data["results"]:
+            results.add(tmd["infohash"])
+            self.infohash_to_queries[tmd["infohash"]].append((query, tmd["num_seeders"], tmd["num_seeders"]))
         self.queries[query] = results | self.queries.get(query, set())
 
         if len(self.queries) > self.max_query_history:
             query, results = self.queries.popitem(False)
             for infohash in results:
-                self.infohash_to_queries[infohash].remove(query)
+                self.infohash_to_queries[infohash] = [e for e in self.infohash_to_queries[infohash] if e[0] != query]
                 if not self.infohash_to_queries[infohash]:
                     self.infohash_to_queries.pop(infohash)
 
@@ -65,10 +66,13 @@ class UserActivityManager:
         b_infohash = InfoHash(unhexlify(infohash))
         queries = self.infohash_to_queries[b_infohash]
         for query in queries:
-            losing_infohashes = self.queries[query] - {b_infohash}
-            self.task_manager.register_anonymous_task("Store query", get_running_loop().run_in_executor,
-                                                      None, self.database_manager.store,
-                                                      query, b_infohash, losing_infohashes)
+            losing_infohashes = self.queries[query[0]] - {b_infohash}
+            self.task_manager.register_anonymous_task(
+                "Store query", get_running_loop().run_in_executor, None, self.database_manager.store,
+                query[0], (b_infohash, query[1], query[2]),
+                {(bih, self.infohash_to_queries[bih][0], self.infohash_to_queries[bih][1])
+                 for bih in losing_infohashes}
+            )
 
     def check_preferable(self) -> None:
         """

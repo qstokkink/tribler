@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING
 from ipv8.community import Community, CommunitySettings
 from ipv8.lazy_community import lazy_wrapper
 
-from tribler.core.user_activity.payload import InfohashPreferencePayload, PullPreferencePayload
+from tribler.core.user_activity.payload import (InfohashPreferencePayload, InfohashPreferencePayload2,
+                                                PullPreferencePayload)
 
 if TYPE_CHECKING:
     from ipv8.types import Peer
@@ -39,6 +40,7 @@ class UserActivityCommunity(Community):
         self.composition = settings
 
         self.add_message_handler(InfohashPreferencePayload, self.on_infohash_preference)
+        self.add_message_handler(InfohashPreferencePayload2, self.on_infohash_preference2)
         self.add_message_handler(PullPreferencePayload, self.on_pull_preference)
 
         self.register_task("Gossip random preference", self.gossip, interval=5.0)
@@ -62,7 +64,20 @@ class UserActivityCommunity(Community):
         aggregate = self.composition.manager.database_manager.get_random_query_aggregate(aggregate_for)
 
         if aggregate is not None:
-            payload = InfohashPreferencePayload(*aggregate)
+            query, ih_infos, weights = aggregate
+            ih_list = []
+            seeders_list = []
+            leechers_list = []
+            for ih, seeders, leechers in ih_infos:
+                ih_list.append(ih)
+                if seeders is not None:
+                    seeders_list.append(seeders)
+                if leechers is not None:
+                    leechers_list.append(leechers)
+            if aggregate_for == 0:
+                payload = InfohashPreferencePayload2(query, ih_list, weights, seeders_list, leechers_list)
+            else:
+                payload = InfohashPreferencePayload(query, ih_list, weights)
             for peer in neighbors:
                 self.ez_send(peer, payload)
 
@@ -72,6 +87,19 @@ class UserActivityCommunity(Community):
         We received a preference message.
         """
         self.composition.manager.database_manager.store_external(payload.query, payload.infohashes, payload.weights,
+                                                                 [], [], peer.public_key.key_to_bin())
+
+        for infohash, _ in sorted(zip(payload.infohashes, payload.weights), key=lambda x: x[1], reverse=True):
+            self.composition.manager.check(infohash)
+            break
+
+    @lazy_wrapper(InfohashPreferencePayload2)
+    def on_infohash_preference2(self, peer: Peer, payload: InfohashPreferencePayload2) -> None:
+        """
+        We received a preference message, version 2.
+        """
+        self.composition.manager.database_manager.store_external(payload.query, payload.infohashes, payload.weights,
+                                                                 payload.seeders, payload.leechers,
                                                                  peer.public_key.key_to_bin())
 
         for infohash, _ in sorted(zip(payload.infohashes, payload.weights), key=lambda x: x[1], reverse=True):

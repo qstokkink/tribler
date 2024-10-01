@@ -66,12 +66,17 @@ class UserActivityLayer:
             infohash = orm.Required(bytes)
             preference = orm.Required(float)
             parent_query = orm.Required(Query)
+            seeders = orm.Optional(int)
+            leechers = orm.Optional(int)
             orm.PrimaryKey(infohash, parent_query)
+
+        # TODO: make a soft-upgrade to introduce the seeders and leechers columns
 
         self.Query = Query
         self.InfohashPreference = InfohashPreference
 
-    def store_external(self, query: str, infohashes: list[bytes], weights: list[float], public_key: bytes) -> None:
+    def store_external(self, query: str, infohashes: list[bytes], weights: list[float], seeders: list[int],
+                       leechers: list[int], public_key: bytes) -> None:
         """
         Store externally shared info.
         """
@@ -94,22 +99,28 @@ class UserActivityLayer:
             for i in range(len(infohashes)):
                 if infohashes[i] in existing_entries:
                     existing_entries[infohashes[i]].preference = weights[i]
+                    existing_entries[infohashes[i]].seeders = seeders[i]
+                    existing_entries[infohashes[i]].leechers = leechers[i]
                 else:
                     existing.infohashes.add(self.InfohashPreference(infohash=InfoHash(infohashes[i]),
                                                                     preference=weights[i],
-                                                                    parent_query=existing))
+                                                                    parent_query=existing,
+                                                                    seeders=seeders[i],
+                                                                    leechers=leechers[i]))
 
-    def store(self, query: str, infohash: InfoHash, losing_infohashes: typing.Set[InfoHash]) -> None:
+    def store(self, query: str,
+              infohash: tuple[InfoHash, int | None, int | None],
+              losing_infohashes: set[tuple[InfoHash, int | None, int | None]]) -> None:
         """
         Store a query, its selected infohash, and the infohashes that were not downloaded.
 
         :param query: The text that the user searched for.
-        :param infohash: The infohash that the user downloaded.
+        :param infohash: The infohash that the user downloaded with seeders/leechers (if available).
         :param losing_infohashes: The infohashes that the user saw but ignored.
         """
         # Convert "win" or "loss" to "1.0" or "0.0".
-        weights = {ih: 0.0 for ih in losing_infohashes}
-        weights[infohash] = 1.0
+        weights = {ih[0]: 0.0 for ih in losing_infohashes}
+        weights[infohash[0]] = 1.0
 
         # Update or create a new database entry
         with db_session:
@@ -128,13 +139,23 @@ class UserActivityLayer:
                         else:
                             old_infohash_preference.preference = new_weight
                 if infohash in weights:
-                    weights[infohash] = self.update_weight_new
+                    weights[infohash[0]] = self.update_weight_new
             else:
                 existing = self.Query(query=query, infohashes=set(), forwarding_pk=b"")
 
             for new_infohash, weight in weights.items():
                 existing.infohashes.add(self.InfohashPreference(infohash=new_infohash, preference=weight,
                                                                 parent_query=existing))
+
+            # Update seeders and leechers
+            all_infohash_info = losing_infohashes | {infohash}
+            for a_infohash, seeders, leechers in all_infohash_info:
+                if seeders is None or leechers is None:
+                    continue
+                result = self.InfohashPreference.get(infohash=a_infohash, parent_query=existing)
+                if result is not None:
+                    result.seeders = seeders
+                    result.leechers = seeders
 
     @db_session
     def _select_superior(self, infohash_preference: InfohashPreference) -> InfoHash:
@@ -174,7 +195,9 @@ class UserActivityLayer:
             return {self._select_superior(ih) for ih in random_selection}
 
     def get_random_query_aggregate(self, neighbors: int,
-                                   limit: int = 20) -> tuple[str, list[InfoHash], list[float]] | None:
+                                   limit: int = 20) -> tuple[str,
+                                                             list[tuple[InfoHash, int | None, int | None]],
+                                                             list[float]] | None:
         """
         Select a random query string and aggregate the scores from different peers.
 
@@ -194,9 +217,9 @@ class UserActivityLayer:
             if existing and (neighbors == 0 or random.random() < 1.0 - 1/neighbors):
                 items = list(existing[0].infohashes)
                 random.shuffle(items)
-                for infohash_preference in items[:limit]:
-                    infohashes.append(InfoHash(infohash_preference.infohash))
-                    weights.append(infohash_preference.preference)
+                for ih_pref in items[:limit]:
+                    infohashes.append((InfoHash(ih_pref.infohash), ih_pref.seeders, ih_pref.leechers))
+                    weights.append(ih_pref.preference)
                 return random_selection.query, infohashes, weights
             # Option 2: aggregate
             results = self.Query.select(lambda q: q.query == random_selection.query)[:]
@@ -212,6 +235,6 @@ class UserActivityLayer:
             random.shuffle(items)
             for aggregated in items[:limit]:
                 infohash, preference = aggregated
-                infohashes.append(InfoHash(infohash))
+                infohashes.append((InfoHash(infohash), None, None))
                 weights.append(preference)
             return random_selection.query, infohashes, weights

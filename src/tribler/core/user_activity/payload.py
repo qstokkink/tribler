@@ -32,6 +32,20 @@ class InfohashPreferencePayload(VariablePayloadWID):
         """
         return b"".join(user_value)
 
+
+@vp_compile
+class InfohashPreferencePayload2(InfohashPreferencePayload):
+    """
+    A network payload containing a query and corresponding infohashes with their perceived preference.
+    """
+
+    msg_id = 2
+    names = [*InfohashPreferencePayload.names, "arrayH-q", "arrayH-q"]
+    format_list = [*InfohashPreferencePayload.format_list, "arrayH-q", "arrayH-q"]
+    seeders: list[int]
+    leechers: list[int]
+
+
 @vp_compile
 class PullPreferencePayload(VariablePayloadWID):
     """
