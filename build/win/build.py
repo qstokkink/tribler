@@ -85,7 +85,8 @@ def get_freeze_build_options():
             "excludes": excluded_packages,
             "include_files": included_files,
             "include_msvcr": True,
-            'build_exe': 'dist/tribler'
+            'build_exe': 'dist/tribler',
+            "bin_excludes": ["libcrypto.so", "libssl.so"]
         }
     }
     if platform.system() == 'Linux':
