@@ -1,0 +1,61 @@
+name: Build Cross Deb
+on: workflow_dispatch
+
+jobs:
+  armv7_job:
+    runs-on: ubuntu-22.04
+    name: Build on ${{ matrix.distro }} ${{ matrix.arch }}
+    strategy:
+      matrix:
+        include:
+          - arch: aarch64
+            distro: ubuntu22.04
+    steps:
+      - name: Check-out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+          fetch-tags: 'true'
+      - name: Setup npm
+        uses: actions/setup-node@v4
+      - name: Build npm
+        shell: bash
+        run: |
+          cd src/tribler/ui/
+          npm install
+          npm run build
+          rm -rf node_modules
+      - uses: uraimo/run-on-arch-action@v2
+        name: Compile aarch64
+        id: runcmd
+        with:
+          arch: aarch64
+          distro: ubuntu22.04
+          githubToken: ${{ github.token }}
+          dockerRunArgs: |
+            --volume "${PWD}:/tribler"
+          env: |
+            GITHUB_TAG: '8.0.1'
+          shell: /bin/sh
+          install: |
+            apt-get update -q -y
+            apt-get install -q -y --allow-downgrades alien cpio=2.13+dfsg-7 devscripts fakeroot gir1.2-gtk-4.0 libgirepository1.0-dev rpm python3-pip libcairo2-dev
+          run: |
+            cd /tribler
+            cp /lib/aarch64-linux-gnu/libcrypt.so.1 libcrypt-06cd74a6.so.2
+            python3 -m pip install --upgrade -r build/requirements.txt
+            python3 -m pip install meson ninja
+            export PATH="/usr/local/bin:$PATH"
+            ./build/debian/makedist_debian.sh
+            
+            cd build/debian
+            apt-get install -y --fix-broken ./tribler_${GITHUB_TAG}_all.deb
+
+            timeout 10s tribler -s || true
+            cat /tmp/*tribler*.log
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.distro }} ${{ matrix.arch }} Build
+          path: |
+            build/debian/*.deb
