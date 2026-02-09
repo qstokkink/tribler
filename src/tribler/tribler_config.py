@@ -199,6 +199,10 @@ class LibtorrentConfig(TypedDict):
 
     ask_download_settings: bool
 
+    i2p: bool
+    i2p_hostname: str
+    i2p_port: int
+
 
 class RecommenderConfig(TypedDict):
     """
@@ -344,7 +348,10 @@ DEFAULT_CONFIG = {
         active_tracker_limit=1600,
         active_lsd_limit=60,
         active_limit=500,
-        ask_download_settings=False
+        ask_download_settings=False,
+        i2p=False,
+        i2p_hostname="",
+        i2p_port=0
         ),
     "recommender": RecommenderConfig(enabled=True),
     "rendezvous": RendezvousConfig(enabled=True),

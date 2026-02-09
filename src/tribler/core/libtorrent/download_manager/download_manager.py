@@ -316,7 +316,7 @@ class DownloadManager(TaskManager):
         libtorrent_if = self.config.get("libtorrent/listen_interface")
         libtorrent_port = self.config.get("libtorrent/port")
         logger.info("Libtorrent ip+port set to %s:%d", libtorrent_if, libtorrent_port)
-        if hops == 0:
+        if hops == 0 and not self.config.get("libtorrent/i2p"):
             settings["user_agent"] = "Tribler/" + VERSION_SUBDIR
             enable_utp = self.config.get("libtorrent/utp")
             settings["enable_outgoing_utp"] = enable_utp
@@ -324,6 +324,10 @@ class DownloadManager(TaskManager):
             settings["prefer_rc4"] = True
             settings["listen_interfaces"] = f"{libtorrent_if}:{libtorrent_port or 6881}"
         else:
+            if self.config.get("libtorrent/i2p"):
+                settings["i2p_hostname"] = self.config.get("libtorrent/i2p_hostname")
+                settings["i2p_port"] = self.config.get("libtorrent/i2p_port")
+                settings["enable_dht"] = 0
             settings["enable_outgoing_utp"] = True
             settings["enable_incoming_utp"] = True
             settings["enable_outgoing_tcp"] = False

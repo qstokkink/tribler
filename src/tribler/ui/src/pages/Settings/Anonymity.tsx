@@ -1,5 +1,8 @@
 import SaveButton from "./SaveButton";
 import toast from "react-hot-toast";
+import {Checkbox} from "@/components/ui/checkbox";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
 import {Slider} from "@/components/ui/slider";
 import {Settings} from "@/models/settings.model";
 import {triblerService} from "@/services/tribler.service";
@@ -78,6 +81,67 @@ export default function Anonimity() {
                 <span className="text-xl text-muted-foreground font-bold">
                     {hopsToString(settings?.libtorrent?.download_defaults?.number_hops)}
                 </span>
+            </div>
+            <br />
+            <Checkbox
+                id="i2p"
+                className="my-2"
+                checked={!!settings?.libtorrent.i2p}
+                onCheckedChange={(value) => {
+                    if (settings) {
+                        setSettings({
+                            ...settings,
+                            libtorrent: {
+                                ...settings.libtorrent,
+                                i2p: !!value,
+                            },
+                        });
+                    }
+                }}
+            />
+            <Label htmlFor="i2p" className="whitespace-nowrap pr-5 ml-2">
+                {t("EnableI2P")}
+            </Label>
+            <br />
+            <div className="py-2 flex items-center ml-6">
+                <Label htmlFor="i2p_hostname" className="whitespace-nowrap pr-5">
+                    {t("Server")}
+                </Label>
+                <Input
+                    id="i2p_hostname"
+                    value={(settings?.libtorrent?.i2p_hostname || "")}
+                    onChange={(event) => {
+                        if (settings) {
+                            setSettings({
+                                ...settings,
+                                libtorrent: {
+                                    ...settings.libtorrent,
+                                    i2p_hostname: event.target.value,
+                                },
+                            });
+                        }
+                    }}
+                />
+
+                <Label htmlFor="i2p_port" className="whitespace-nowrap pr-5 ml-2">
+                    {t("Port")}
+                </Label>
+                <Input
+                    id="i2p_port"
+                    type="number"
+                    value={(settings?.libtorrent?.i2p_port || 0)}
+                    onChange={(event) => {
+                        if (settings) {
+                            setSettings({
+                                ...settings,
+                                libtorrent: {
+                                    ...settings.libtorrent,
+                                    i2p_port: event.target.value
+                                },
+                            });
+                        }
+                    }}
+                />
             </div>
             <br />
             <SaveButton

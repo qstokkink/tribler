@@ -63,6 +63,7 @@
     "MaxHops": "Baixa Velocidade\nAlta anonimidade",
     "HopInfo": "Decida quantos proxies devem existir entre você e a rede BitTorrent por padrão. Você pode escolher entre 1, 2 ou 3 proxies. Quanto mais você adicionar, mais difícil será descobrir você, mas sua velocidade de download também será menor.",
     "ForMoreInfoRead": "Para mais informações, leia",
+    "EnableI2P": "Volte para I2P ao usar 0 saltos (requer reinicialização)",
     "EnableDevMode": "Ativar o modo de desenvolvedor",
     "Name": "Nome",
     "Size": "Tamanho",

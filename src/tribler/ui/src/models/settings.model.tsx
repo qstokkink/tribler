@@ -84,6 +84,9 @@ export interface Settings {
             torrent_folder: string;
             auto_managed: boolean;
         };
+        i2p: boolean;
+        i2p_hostname: string;
+        i2p_port: number;
     } & AutoManageSettings;
     rendezvous: {
         enabled: boolean;
