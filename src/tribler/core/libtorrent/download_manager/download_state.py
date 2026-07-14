@@ -73,6 +73,7 @@ class DownloadState:
         self.download = download
         self.lt_status = lt_status
         self.error = error
+        self.move_progress = 0.0
 
     def __str__(self) -> str:
         """
@@ -98,7 +99,9 @@ class DownloadState:
 
         :return: Progress as a float (0..1).
         """
-        return self.lt_status.progress if self.lt_status else 0
+        if self.lt_status:
+            return self.move_progress if self.lt_status.moving_storage else self.lt_status.progress
+        return 0
 
     def get_status(self) -> DownloadStatus:
         """

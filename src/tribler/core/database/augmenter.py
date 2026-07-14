@@ -124,8 +124,6 @@ class AugmentedSearch:
         self.title_window = []
         self.title_cache_file.unlink(missing_ok=True)
         await self.write_completed
-        if self.processor.vocab_size() > 0:
-            self.processor.ResetVocabulary()
         self.processor.Load(model_file=str(self.model_file))
         logger.info("Training torrent title vocabulary completed, new model of size %d loaded!",
                     self.processor.vocab_size())

@@ -157,7 +157,7 @@ jobs:
           shell-name: alpine-x86_64.sh
           arch: x86_64
           branch: v3.23
-          packages: python3-dev py3-pip py3-gobject3 py3-lz4 build-base abuild doas sudo shadow-login cmake protobuf-dev pkgconf
+          packages: python3-dev py3-pip py3-gobject3 py3-lz4 build-base abuild doas sudo shadow-login cmake protobuf-dev pkgconf git
 
       - name: Build musl Executables (Alpine musl x86_64)
         if: matrix.os == 'ubuntu-latest' && matrix.architecture == 'x64'

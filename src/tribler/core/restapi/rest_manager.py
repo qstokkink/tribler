@@ -124,8 +124,10 @@ async def error_middleware(request: Request, handler: Callable[[Request], Awaita
             "handled": True,
             "message": http_error.text,
         }}, status=HTTP_REQUEST_ENTITY_TOO_LARGE)
-    except Exception:
+    except Exception as exc:
         full_exception = traceback.format_exc()
+        logger.exception("Caught REST endpoint exception: %s",
+                         "".join(traceback.format_exception(exc.__class__, exc, exc.__traceback__)))
 
         return RESTResponse({"error": {
             "handled": False,

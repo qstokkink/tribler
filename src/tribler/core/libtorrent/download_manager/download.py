@@ -26,6 +26,7 @@ from ipv8.util import succeed
 
 from tribler.core.libtorrent.download_manager.download_config import DownloadConfig, PostHandleOp
 from tribler.core.libtorrent.download_manager.download_state import DownloadState, DownloadStatus
+from tribler.core.libtorrent.download_manager.move_storage_context import MoveContext
 from tribler.core.libtorrent.download_manager.stream import Stream
 from tribler.core.libtorrent.torrents import check_handle, get_info_from_handle, require_handle
 from tribler.core.libtorrent.uris import get_url
@@ -806,12 +807,22 @@ class Download(TaskManager):
             self.set_file_priorities([prio if index in selected_files else 0 for index in range(total_files)])
         return
 
+    async def track_move(self, alerter: Future[lt.alert], new_dir: Path) -> None:
+        """
+        Track the current move completion.
+        """
+        async with MoveContext(self.tdef.torrent_info.files(), self.get_state(),
+                               self.config.get_dest_dir(), new_dir, alerter):
+            await alerter
+
     @check_handle(False)
     def move_storage(self, handle: lt.torrent_handle, new_dir: Path) -> bool:
         """
         Move the output files to a different location.
         """
         if self.tdef.torrent_info is not None:
+            alerter = self.wait_for_alert("storage_moved_alert", None, "storage_moved_failed_alert", None)
+            self.register_task("Track move", self.track_move, alerter, new_dir)
             handle.move_storage(str(new_dir), lt.move_flags_t.dont_replace)
         self.config.set_dest_dir(new_dir)
         return True
