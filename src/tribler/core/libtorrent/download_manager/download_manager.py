@@ -28,6 +28,7 @@ from yarl import URL
 from tribler.core.libtorrent.download_manager.download import Download
 from tribler.core.libtorrent.download_manager.download_config import DownloadConfig
 from tribler.core.libtorrent.download_manager.download_state import DownloadState, DownloadStatus
+from tribler.core.libtorrent.download_manager.suspend_detector import SuspendDetector
 from tribler.core.libtorrent.torrentdef import TorrentDef, best_info_hash
 from tribler.core.libtorrent.uris import get_url, unshorten, url_to_path
 from tribler.core.notifier import Notification, Notifier
@@ -175,6 +176,7 @@ class DownloadManager(TaskManager):
         self.register_task("task_cleanup_metacache", self._task_cleanup_metainfo_cache, interval=60, delay=0)
         self.register_task("request_session_stats", self._request_session_stats, interval=5)
         self.register_task("process_advanced_rate_limits", self.process_advanced_rate_limits, interval=300)
+        self.register_task("detect_suspend", self._detect_suspend)
 
         self.set_download_states_callback(self.sesscb_states_callback)
 
@@ -1223,3 +1225,19 @@ class DownloadManager(TaskManager):
                       if setting_proxy_auth and len(setting_proxy_auth) == 2  else None)
 
         return self.config.get("libtorrent/proxy_type"), proxy_server, proxy_auth
+
+    async def _detect_suspend(self) -> None:
+        """
+        This is an infinite loop that gets (a) cancelled or (b) woken up by a system resume after sleep.
+
+        On the off chance that we get awoken, we have to reestablish all network connections for all torrents.
+        """
+        sd = SuspendDetector()
+        while True:
+            await sd.wait()  # Normally, this will just cancel, but if after a suspend we continue in the loop.
+            self._logger.info("Waking up from process suspend, attempting reanimation of downloads!")
+            for download in self.downloads.values():
+                if (not download.config.get_user_stopped()
+                        and download.handle is not None and download.handle.is_valid()):
+                    download.force_dht_announce()
+                    download.add_trackers({})  # This calls handle.force_reannounce()
