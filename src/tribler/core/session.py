@@ -153,6 +153,34 @@ class Session:
                 self.rest_manager.add_endpoint(rest_ep)
             self.loader.set_launcher(instance)
 
+    async def generic_relaunch(self, launcher: CommunityLauncherWEndpoints) -> None:
+        """
+        Use the generic component loading mechanism to launch a component while running.
+        """
+        self.loader.set_launcher(launcher)
+        if not self.loader.has_launched(launcher.get_name()):
+            loader = IPv8CommunityLoader()
+            loader.set_launcher(launcher)
+            loader.load(self.ipv8, self)
+            self.loader.community_launchers[launcher.get_name()] = loader.community_launchers[launcher.get_name()]
+            for rest_ep in launcher.get_endpoints():
+                await self.rest_manager.add_endpoint_post_start(rest_ep)
+        else:
+            logger.error("Attempted to launch %s while it was already running!", launcher.get_name())
+
+    async def generic_unlaunch(self, launcher: CommunityLauncherWEndpoints) -> None:
+        """
+        Call the generic component unload with typical IPv8 cleanup.
+        """
+        overlays = self.ipv8.get_overlays(launcher.get_overlay_class())
+        for overlay in overlays:
+            await self.ipv8.unload_overlay(overlay)
+        for rest_ep in launcher.get_endpoints():
+            await rest_ep.app.stop()
+            self.rest_manager.root_endpoint.app._subapps = [sa for sa in self.rest_manager.root_endpoint.app._subapps
+                                                            if sa != rest_ep.app]
+        self.loader.del_launcher(launcher)
+
     def register_rest_endpoints(self) -> None:
         """
         Register all core REST endpoints without initializing them.

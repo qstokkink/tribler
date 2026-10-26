@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, TypeVar, cast
 from aiohttp import tcp_helpers, web, web_protocol
 from aiohttp.web_exceptions import HTTPNotFound, HTTPRequestEntityTooLarge
 from aiohttp_apispec import AiohttpApiSpec
+from aiosignal import Signal
 from apispec.core import VALID_METHODS_OPENAPI_V2
 
 from tribler.core.restapi.rest_endpoint import (
@@ -196,6 +197,39 @@ class RESTManager:
         """
         self.root_endpoint.add_endpoint(endpoint.path, endpoint)
         return endpoint
+
+    def _rereg_signal(self, signame: str) -> None:
+        """
+        This lifts the frozen async callback list and replaces it with a modifiable list that needs to be frozen again.
+
+        If anyone touches the callback list while we are modifying it, you get an error.
+        """
+        old_cbs = [cb for cb in getattr(self.root_endpoint.app, signame)]
+        new_sig = Signal(self.root_endpoint.app)
+        for cb in old_cbs:
+            new_sig.append(cb)
+        setattr(self.root_endpoint.app, "_" + signame, new_sig)
+
+    async def add_endpoint_post_start(self, endpoint: RESTEndpoint) -> None:
+        """
+        Add an endpoint after the RESTManager has already started.
+        """
+        # Partially defrost
+        self.root_endpoint.app._frozen = False
+        self.root_endpoint.app.router._frozen = False
+        self._rereg_signal("on_startup")
+        self._rereg_signal("on_shutdown")
+        self._rereg_signal("on_cleanup")
+        # Add the new endpoint
+        self.add_endpoint(endpoint)
+        # Freeze again
+        self.root_endpoint.app.router.freeze()
+        self.root_endpoint.app.on_startup.freeze()
+        self.root_endpoint.app.on_shutdown.freeze()
+        self.root_endpoint.app.on_cleanup.freeze()
+        self.root_endpoint.app.freeze()
+        # The root startup has already fired and it will never fire again. So, we fire it manually for the subapp.
+        await endpoint.app.on_startup.send(self.root_endpoint.app)
 
     def get_endpoint(self, name: str) -> RESTEndpoint:
         """
